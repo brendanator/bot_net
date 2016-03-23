@@ -1,18 +1,42 @@
-CC := gcc
-TARGET := bot_net
+EXE = bot_net
 
-LD_FLAGS :=
-CC_FLAGS := -MMD
+CC = gcc
+FLAGS = -Wall -Wextra
+CC_FLAGS = $(FLAGS) -MMD
+LD_FLAGS = $(FLAGS)
 
-C_FILES := $(wildcard src/*.c)
-OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
+SRC_DIRECTORY = src
+SRC_FILES = $(wildcard $(SRC_DIRECTORY)/*.c)
+OBJ_DIRECTORY = obj
+OBJ_FILES = $(addprefix $(OBJ_DIRECTORY)/,$(notdir $(SRC_FILES:.c=.o)))
+TST_DIRECTORY = test
+TST_FILES = $(wildcard $(TST_DIRECTORY)/*.c)
+TST_OBJ_FILES = $(addprefix $(OBJ_DIRECTORY)/,$(notdir $(TST_FILES:.c=.o)))
 
-all: $(TARGET)
+.PHONY: all clean test $(TST_FILES:.c=)
 
-$(TARGET): $(OBJ_FILES)
+all: $(OBJ_DIRECTORY) $(EXE)
+
+$(EXE): $(OBJ_FILES)
 	$(CC) $(LD_FLAGS) -o $@ $^
 
-obj/%.o: src/%.c
+$(OBJ_DIRECTORY):
+	mkdir $(OBJ_DIRECTORY)
+
+$(OBJ_DIRECTORY)/%.o: $(SRC_DIRECTORY)/%.c
 	$(CC) $(CC_FLAGS) -c -o $@ $<
 
--include $(OBJFILES:.o=.d)
+$(OBJ_DIRECTORY)/%.o: $(TST_DIRECTORY)/%.c
+	$(CC) $(CC_FLAGS) -c -o $@ $<
+
+$(notdir $(TST_FILES:.c=)): $(filter-out obj/main.o, $(OBJ_FILES))
+	-@ $(CC) $(LD_FLAGS) -o $(TST_DIRECTORY)/$@ $(TST_DIRECTORY)/$@.c $^
+	-@ $(TST_DIRECTORY)/$@
+
+test: $(notdir $(TST_FILES:.c=))
+
+clean:
+	-rm -rf $(OBJ_DIRECTORY) $(EXE)
+
+-include $(OBJ_FILES:.o=.d)
+-include $(TST_OBJ_FILES:.o=.d)

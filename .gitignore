@@ -1,5 +1,8 @@
 bot_net
-gameroom.cfg
+*_test
+
+*.cfg
+*.pgn
 
 logs/
 running/
