@@ -1,53 +1,50 @@
-#define ALL         0
-#define RABBIT      1
-#define CAT         2
-#define DOG         3
-#define HORSE       4
-#define CAMEL       5
-#define ELEPHANT    6
-
-#define GOLD 0
-#define SILVER 1
-
-#define NOT_A_FILE  0xfefefefefefefefeULL
-#define NOT_H_FILE  0x7f7f7f7f7f7f7f7fULL
-#define NOT_1_RANK  0xffffffffffffff00ULL
-#define NOT_8_RANK  0x00ffffffffffffffULL
-#define TRAPS       0x0000240000240000ULL
-#define EMPTY       0ULL
+typedef enum Type { ALL, RABBIT, CAT, DOG, HORSE, CAMEL, ELEPHANT, TYPE_COUNT } Type;
+typedef enum Colour { GOLD, SILVER, COLOUR_COUNT } Colour;
+typedef int Square;
 
 // Indexed so that - a1 = 0, h1 = 7, a8 = 56, h8 = 63
-typedef unsigned long long bitboard;
+typedef unsigned long long Bitboard;
 
-typedef struct position
-{
-  bitboard pieces[2][7];
+// Useful bitboards
+#define NOT_A_FILE 0xfefefefefefefefeULL
+#define NOT_H_FILE 0x7f7f7f7f7f7f7f7fULL
+#define NOT_1_RANK 0xffffffffffffff00ULL
+#define NOT_8_RANK 0x00ffffffffffffffULL
+#define TRAPS      0x0000240000240000ULL
+#define EMPTY      0ULL
+
+typedef struct Position {
+  Bitboard pieces[COLOUR_COUNT][TYPE_COUNT];
   int      turn;
-} position;
+} Position;
 
-typedef struct step
-{
-  char from;
-  char to;
-  int type;
-  int colour;
-} step;
+typedef struct Step {
+  Square from;
+  Square to;
+  Type type;
+  Colour colour;
+} Step;
 
-typedef struct move
-{
+typedef struct Move {
   int step_count;
-  step step[4];
-} move;
+  Step step[4];
+} Move;
 
 void init_move_generation();
-void new_game(position *position);
-void make_move(position *current, position *next, move move);
-void make_step(position *position, step step);
-void find_best_move(position *position, move *best_move);
-int generate_single_steps(position *position, move *moves);
+Position new_game();
 
-int first_square(bitboard board);
-bitboard bit_at(int n);
+void make_move(Position *position, Move move);
+void make_step(Position *position, Step step);
 
-void print_bitboard(bitboard bitboard);
-void print_position(position position);
+Move find_best_move(Position position);
+int generate_single_steps(Position position, Move *moves);
+int generate_push_steps(Position position, Move *moves);
+int generate_pull_steps(Position position, Move *moves);
+
+Square first_square(Bitboard board);
+Type type_at_square(Position position, Colour colour, Square square);
+Bitboard bitboard_at(Square square);
+Bitboard square_neighbours[64];
+
+void print_bitboard(Bitboard bitboard);
+void print_position(Position position);

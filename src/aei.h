@@ -2,8 +2,8 @@
 
 #define version "0.0.1"
 
-void parse_steps(step steps[], char *str_steps[], int count);
+void parse_steps(Step steps[], char *step_str[], int count);
 int parse_message(char *str, char *message, char *options[]);
-void makemove(position *current, position *next, char *str_steps[], int count);
-int aei_loop(void);
-void go(position *position);
+void makemove(Position *position, char *step_str[], int count);
+void aei_loop();
+void go(Position position);

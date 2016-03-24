@@ -5,8 +5,8 @@
 #include "../src/aei.h"
 
 char * test_parse_message() {
-  char *input = (char *)malloc(32 * sizeof(char));;
-  char *message = (char *)malloc(32 * sizeof(char));;
+  char input[32];
+  char message[32];
   char *options[64];
   strcpy(input, "makemove Ra2e Rh2w\n");
 
@@ -20,10 +20,10 @@ char * test_parse_message() {
 }
 
 char * test_parse_steps() {
-  step steps[4];
-  char *str_steps[] = { "Ra1e", "eh8s", "Hc2", "df6x" };
+  Step steps[4];
+  char *step_str[] = { "Ra1e", "eh8s", "Hc2", "df6x" };
 
-  parse_steps(steps, str_steps, 4);
+  parse_steps(steps, step_str, 4);
 
   mu_assert(steps[0].from == 0);
   mu_assert(steps[0].to == 1);
@@ -49,25 +49,22 @@ char * test_parse_steps() {
 }
 
 char * test_makemove() {
-  position first;
-  position second;
-  position third;
-  new_game(&first);
+  Position position = new_game();
 
-  char *str_steps[] = { "Ra1", "eh8", "Hc2" };
-  makemove(&first, &second, str_steps, 3);
+  char *step_str[] = { "Ra1", "eh8", "Hc2" };
+  makemove(&position, step_str, 3);
 
-  mu_assert(second.turn == 1);
-  mu_assert(second.pieces[GOLD][RABBIT] == bit_at(0));
-  mu_assert(second.pieces[GOLD][HORSE] == bit_at(10));
-  mu_assert(second.pieces[SILVER][ELEPHANT] == bit_at(63));
+  mu_assert(position.turn == 1);
+  mu_assert(position.pieces[GOLD][RABBIT] == bitboard_at(0));
+  mu_assert(position.pieces[GOLD][HORSE] == bitboard_at(10));
+  mu_assert(position.pieces[SILVER][ELEPHANT] == bitboard_at(63));
 
-  char *str_steps2[] = { "Ra1e", "eh8s", "Hc2n", "Hc3x" };
-  makemove(&second, &third, str_steps2, 3);
+  char *step_str2[] = { "Ra1e", "eh8s", "Hc2n", "Hc3x" };
+  makemove(&position, step_str2, 4);
 
-  mu_assert(third.pieces[GOLD][RABBIT] == bit_at(1));
-  mu_assert(third.pieces[GOLD][HORSE] == EMPTY);
-  mu_assert(third.pieces[SILVER][ELEPHANT] == bit_at(55));
+  mu_assert(position.pieces[GOLD][RABBIT] == bitboard_at(1));
+  mu_assert(position.pieces[GOLD][HORSE] == EMPTY);
+  mu_assert(position.pieces[SILVER][ELEPHANT] == bitboard_at(55));
 
   return 0;
 }

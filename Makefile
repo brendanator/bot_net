@@ -1,7 +1,7 @@
 EXE = bot_net
 
 CC = gcc
-FLAGS = -Wall -Wextra
+FLAGS = -Wall -Wextra -g
 CC_FLAGS = $(FLAGS) -MMD
 LD_FLAGS = $(FLAGS)
 
