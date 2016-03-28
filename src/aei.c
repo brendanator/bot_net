@@ -7,7 +7,7 @@
 int parse_message(char *str, char *message, char *options[]) {
   int count = 0;
   char *token = strtok(str, " \n");
-  
+
   if (token) {
     strcpy(message, token);
   } else {
@@ -29,39 +29,38 @@ void aei() {
   puts("aeiok");
 }
 
-void parse_steps(Step steps[], char *step_str[], int count) {
+void makemove(Position *position, char *step_str[], int count) {
+  int step_count = 0;
+
   for (int i = 0; i < count; i++) {
     char *move_str = step_str[i];
 
     int piece = 16 - strlen(strchr("-RCDHME--rcdhme-", move_str[0]));
     Colour colour = piece / 8;
     Type type = piece & 7;
-    Square from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
-    Square to;
+    int from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
+    int to;
     switch (move_str[3]) {
-      case 'x': to = -1; break;
       case 'n': to = from + 8; break;
       case 's': to = from - 8; break;
       case 'e': to = from + 1; break;
       case 'w': to = from - 1; break;
+      case 'x': continue;
       default: to = from; from = -1;
     }
 
-    steps[i].from = from;
-    steps[i].to = to;
-    steps[i].type = type;
-    steps[i].colour = colour;
-  }
-}
-
-void makemove(Position *position, char *step_str[], int count) {
-  Step steps[count];
-  parse_steps(steps, step_str, count);
-
-  for (int step_number = 0; step_number < count; step_number++) {
-    if (steps[step_number].to >= 0) {
-      make_step(position, steps[step_number], step_number);
+    if (from >= 0) {
+      Step step = { .from = from, .to = to, .type = type, .colour = colour };
+      make_step(position, step, step_count++);
+    } else {
+      PlacePiece piece = { .colour = colour, .type = type, .square = to };
+      place_piece(position, piece);
     }
+  }
+
+  Step pass_step = { .from = 0, .to = 0, .type = 0, .colour = 0 };
+  for (int step_number = step_count; step_number < 4; step_number++) {
+    make_step(position, pass_step, step_number);
   }
 
   position->turn++;
@@ -115,7 +114,7 @@ void aei_loop() {
       // [ponder]
       go(game[turn]);
     } else if (strcmp(message_type, "stop") == 0) {
-       // 
+       //
     } else if (strcmp(message_type, "quit") == 0) {
       exit(EXIT_SUCCESS);
     } else {

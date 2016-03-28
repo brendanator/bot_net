@@ -88,6 +88,13 @@ Type type_at_square(Position position, Colour colour, Square square) {
   return -1;
 }
 
+void place_piece(Position *position, PlacePiece piece) {
+  position->pieces[piece.colour][piece.type] |= bitboard_at(piece.square);
+  position->pieces[piece.colour][ALL] |= bitboard_at(piece.square);
+
+  position->hash = place_update_hash(position->hash, piece.colour, piece.type, piece.square);
+}
+
 void make_step(Position *position, Step step, int step_number) {
   position->pieces[step.colour][step.type] &= ~bitboard_at(step.from);
   position->pieces[step.colour][step.type] |= bitboard_at(step.to);
@@ -323,6 +330,35 @@ Score eval(Position position) {
   }
 }
 
+Score negamax(Position position, Score alpha, Score beta, int depth) {
+  if (depth <= 0) return eval(position);
+
+  Move *moves = malloc(32000 * sizeof(Move));
+  Move move = new_move();
+  int count = generate_moves(position, move, moves, 0);
+
+  Score best_score = -INFINITY;
+
+  for (int i = 0; i < count; i++) {
+    Position next = position;
+
+    make_move(&next, moves[i]);
+
+    Score score = -negamax(next, -beta, -alpha, depth-1);
+    if (score > best_score) {
+      best_score = score;
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+    if (alpha >= beta) {
+      break;
+    }
+  }
+
+  return best_score;
+}
+
 Move find_best_move(Position position) {
   Move *moves = malloc(32000 * sizeof(Move));
   Move move = new_move();
@@ -411,7 +447,7 @@ void print_short_position(Position position) {
         printf(" ");
       }
     }
-  }  
+  }
   printf("]");
 }
 

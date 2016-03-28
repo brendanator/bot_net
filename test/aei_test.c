@@ -19,35 +19,6 @@ char * test_parse_message() {
   return 0;
 }
 
-char * test_parse_steps() {
-  Step steps[4];
-  char *step_str[] = { "Ra1e", "eh8s", "Hc2", "df6x" };
-
-  parse_steps(steps, step_str, 4);
-
-  mu_assert(steps[0].from == 0);
-  mu_assert(steps[0].to == 1);
-  mu_assert(steps[0].colour == GOLD);
-  mu_assert(steps[0].type == RABBIT);
-
-  mu_assert(steps[1].from == 63);
-  mu_assert(steps[1].to == 55);
-  mu_assert(steps[1].colour == SILVER);
-  mu_assert(steps[1].type == ELEPHANT);
-
-  mu_assert(steps[2].from == -1);
-  mu_assert(steps[2].to == 10);
-  mu_assert(steps[2].colour == GOLD);
-  mu_assert(steps[2].type == HORSE);
-
-  mu_assert(steps[3].from == 45);
-  mu_assert(steps[3].to == -1);
-  mu_assert(steps[3].colour == SILVER);
-  mu_assert(steps[3].type == DOG);
-
-  return 0;
-}
-
 char * test_makemove() {
   Position position = new_game();
 
@@ -72,7 +43,6 @@ char * test_makemove() {
 int main() {
   mu_init();
   mu_run_test(test_parse_message);
-  mu_run_test(test_parse_steps);
   mu_run_test(test_makemove);
   mu_report();
 }

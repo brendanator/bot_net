@@ -1,6 +1,6 @@
 typedef enum Colour { GOLD, SILVER, COLOUR_COUNT } Colour;
 typedef enum Type { ALL, RABBIT, CAT, DOG, HORSE, CAMEL, ELEPHANT, TYPE_COUNT } Type;
-typedef int Square;
+typedef unsigned int Square;
 #define SQUARE_COUNT 64
 
 // Indexed so that - a1 = 0, h1 = 7, a8 = 56, h8 = 63
@@ -21,6 +21,12 @@ typedef struct Position {
   int turn;
   Hash hash;
 } Position;
+
+typedef struct PlacePiece {
+  Colour colour;
+  Type type;
+  Square square;
+} PlacePiece;
 
 typedef struct Step {
   Square from:8;

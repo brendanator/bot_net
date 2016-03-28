@@ -42,13 +42,16 @@ void reset_transposition_table() {
   }  
 }
 
+Hash place_update_hash(Hash hash, Colour colour, Type type, Square square) {
+  return hash ^ piece_hashes[colour][type][square];
+}
+
 int colour_step_hash(Colour colour, int step_number) {
   int index = (colour*4 + step_number) & 7;
   return colour_step_hashes[index];
 }
 
 Hash step_update_hash(Hash hash, Colour colour, Type type, Square from, Square to, int step_number) {
-  // printf("Step %llu %llu %llu %d %d %d %d\n", hash, piece_hashes[colour][type][from], piece_hashes[colour][type][to], colour, type, from, to);
   return hash ^
     piece_hashes[colour][type][from] ^
     piece_hashes[colour][type][to] ^
@@ -57,7 +60,6 @@ Hash step_update_hash(Hash hash, Colour colour, Type type, Square from, Square t
 }
 
 Hash capture_update_hash(Hash hash, Colour colour, Type type, Square square) {
-  // printf("Capture %llu %llu %d %d %d\n", hash, piece_hashes[colour][type][square], colour, type, square);
   return hash ^ piece_hashes[colour][type][square];
 }
 
