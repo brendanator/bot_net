@@ -7,7 +7,13 @@
 int parse_message(char *str, char *message, char *options[]) {
   int count = 0;
   char *token = strtok(str, " \n");
-  strcpy(message, token);
+  
+  if (token) {
+    strcpy(message, token);
+  } else {
+    strcpy(message, "quit");
+  }
+
   while (token) {
     token = strtok(NULL, " \n");
     options[count++] = token;
@@ -27,7 +33,7 @@ void parse_steps(Step steps[], char *step_str[], int count) {
   for (int i = 0; i < count; i++) {
     char *move_str = step_str[i];
 
-    int piece = 16 - strlen( strchr( "-RCDHME--rcdhme-", (int) move_str[0] ) );
+    int piece = 16 - strlen(strchr("-RCDHME--rcdhme-", move_str[0]));
     Colour colour = piece / 8;
     Type type = piece & 7;
     Square from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
@@ -51,15 +57,14 @@ void parse_steps(Step steps[], char *step_str[], int count) {
 void makemove(Position *position, char *step_str[], int count) {
   Step steps[count];
   parse_steps(steps, step_str, count);
-  for (int i = 0; i < count; ++i) {
-    make_step(position, steps[i]);
+
+  for (int step_number = 0; step_number < count; step_number++) {
+    if (steps[step_number].to >= 0) {
+      make_step(position, steps[step_number], step_number);
+    }
   }
 
   position->turn++;
-}
-
-char piece_char(Colour colour, Type type) {
-  return "-RCDHME--rcdhme-"[ colour * 8 + type ];
 }
 
 void go(Position position) {
@@ -73,45 +78,8 @@ void go(Position position) {
 
   Move best_move = find_best_move(position);
 
-  char move_str[128];
-  strcpy(move_str, "bestmove");
-
-  for (int i = 0; i < best_move.step_count; ++i) {
-    Step step = best_move.step[i];
-    char piece = piece_char(step.colour, step.type); 
-    char row = 'a' + (step.from & 7);
-    char col = '1' + (step.from / 8);
-    char direction;
-    switch (step.to - step.from) {
-      case  8: direction = 'n'; break;
-      case -8: direction = 's'; break;
-      case  1: direction = 'e'; break;
-      case -1: direction = 'w'; break;
-    }
-
-    char step_str[6];
-    sprintf(step_str, " %c%c%c%c", piece, row, col, direction);
-    strcat(move_str, step_str);
-
-    // Captures piece step
-    Bitboard trap_pieces = position.pieces[step.colour][ALL] & TRAPS;
-    while (trap_pieces) {
-      Square trap_piece = first_square(trap_pieces);
-      Bitboard trap_square = bitboard_at(trap_piece);
-
-      if (!(position.pieces[step.colour][ALL] & square_neighbours[trap_piece])) {
-        piece = piece_char(step.colour, type_at_square(position, step.colour, trap_piece)); 
-        row = 'a' + (trap_square & 7);
-        col = '1' + (trap_square / 8);
-        sprintf(step_str, " %c%c%cx", piece, row, col);
-        strcat(move_str, step_str);
-      }
-
-      trap_pieces &= ~trap_square;
-    }
-  }
-
-  puts(move_str);
+  printf("bestmove ");
+  print_move(position, best_move);
 }
 
 void aei_loop() {
@@ -134,6 +102,7 @@ void aei_loop() {
     } else if (strcmp(message_type, "newgame") == 0) {
       game[0] = new_game();
       turn = 0;
+      reset_transposition_table();
     } else if (strcmp(message_type, "setposition") == 0) {
       // <side> <position>
     } else if (strcmp(message_type, "setoption") == 0) {

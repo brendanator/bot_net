@@ -12,11 +12,11 @@ Bitboard bitboard_at(Square square) {
   }
 }
 
-Bitboard piece_steps[2][7][64];
+Bitboard piece_steps[COLOUR_COUNT][TYPE_COUNT][SQUARE_COUNT];
 void init_piece_steps() {
-  for (Colour colour = GOLD; colour <= SILVER; colour++) {
-    for (Type type = ALL; type <= ELEPHANT; type++) {
-      for (Square square = 0; square < 64; square++) {
+  for (Colour colour = 0; colour < COLOUR_COUNT; colour++) {
+    for (Type type = 0; type < TYPE_COUNT; type++) {
+      for (Square square = 0; square < SQUARE_COUNT; square++) {
         Bitboard steps = EMPTY;
 
         if (type != RABBIT || colour == GOLD) {
@@ -37,15 +37,25 @@ void init_piece_steps() {
 }
 
 Position new_game() {
-  Position position;
+  Position position = { .turn = 0, .hash = 0ULL };
+
   for (Type type = ALL; type <= ELEPHANT; type++) {
     position.pieces[GOLD][type] = EMPTY;
     position.pieces[SILVER][type] = EMPTY;
   }
 
-  position.turn = 0;
-
   return position;
+}
+
+Move new_move() {
+  Move move = { .step_count = 0 };
+
+  Step pass_step = { .from = 0, .to = 0, .type = 0, .colour = 0 };
+  for (int step_number = 0; step_number < 4; step_number++) {
+    move.step[step_number] = pass_step;
+  }
+
+  return move;
 }
 
 Bitboard all_neighbours(Bitboard board) {
@@ -57,7 +67,7 @@ Bitboard all_neighbours(Bitboard board) {
 }
 
 void init_square_neighbours() {
-  for (Square square = 0; square < 64; square++) {
+  for (Square square = 0; square < SQUARE_COUNT; square++) {
     square_neighbours[square] = all_neighbours(bitboard_at(square));
   }
 }
@@ -78,34 +88,40 @@ Type type_at_square(Position position, Colour colour, Square square) {
   return -1;
 }
 
-void make_step(Position *position, Step step) {
+void make_step(Position *position, Step step, int step_number) {
   position->pieces[step.colour][step.type] &= ~bitboard_at(step.from);
   position->pieces[step.colour][step.type] |= bitboard_at(step.to);
   position->pieces[step.colour][ALL] &= ~bitboard_at(step.from);
   position->pieces[step.colour][ALL] |= bitboard_at(step.to);
 
+  position->hash = step_update_hash(position->hash, step.colour, step.type, step.from, step.to, step_number);
+
   Bitboard trap_pieces = position->pieces[step.colour][ALL] & TRAPS;
   while (trap_pieces) {
-    Square trap_piece = first_square(trap_pieces);
-    Bitboard trap_square = bitboard_at(trap_piece);
+    Square trap_square = first_square(trap_pieces);
+    Bitboard trap = bitboard_at(trap_square);
 
-    if (!(position->pieces[step.colour][ALL] & square_neighbours[trap_piece])) {
-      position->pieces[step.colour][type_at_square(*position, step.colour, trap_piece)] &= ~trap_square;
-      position->pieces[step.colour][ALL] &= ~trap_square;
+    if (!(position->pieces[step.colour][ALL] & square_neighbours[trap_square])) {
+      Type type = type_at_square(*position, step.colour, trap_square);
+      position->pieces[step.colour][type] &= ~trap;
+      position->pieces[step.colour][ALL] &= ~trap;
+
+      position->hash = capture_update_hash(position->hash, step.colour, type, trap_square);
+
       break;
     }
 
-    trap_pieces &= ~trap_square;
+    trap_pieces &= ~trap;
   }
 }
 
 void make_move(Position *position, Move move) {
-  for (int i = 0; i < move.step_count; i++) {
-    make_step(position, move.step[i]);
+  for (int step_number = 0; step_number < move.step_count; step_number++) {
+    make_step(position, move.step[step_number], step_number);
   }
 }
 
-int generate_single_steps(Position position, Move moves[]) {
+int generate_single_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
@@ -124,11 +140,16 @@ int generate_single_steps(Position position, Move moves[]) {
       while (steps) {
         Square to = first_square(steps);
 
-        moves[move_count].step[0].from = from;
-        moves[move_count].step[0].to = to;
-        moves[move_count].step[0].type = type;
-        moves[move_count].step[0].colour = colour;
-        moves[move_count].step_count = 1;
+        Move move = current_move;
+
+        move.step[move.step_count].from = from;
+        move.step[move.step_count].to = to;
+        move.step[move.step_count].type = type;
+        move.step[move.step_count].colour = colour;
+
+        move.step_count++;
+        moves[move_count] = move;
+
         move_count++;
 
         steps &= ~bitboard_at(to);
@@ -141,7 +162,7 @@ int generate_single_steps(Position position, Move moves[]) {
   return move_count;
 }
 
-int generate_push_steps(Position position, Move moves[]) {
+int generate_push_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
@@ -167,17 +188,20 @@ int generate_push_steps(Position position, Move moves[]) {
         while (victim_steps) {
           Square victim_to = first_square(victim_steps);
 
-          moves[move_count].step[0].from = victim_from;
-          moves[move_count].step[0].to = victim_to;
-          moves[move_count].step[0].type = victim_type;
-          moves[move_count].step[0].colour = enemy;
+          Move move = current_move;
 
-          moves[move_count].step[1].from = push_from;
-          moves[move_count].step[1].to = victim_from;
-          moves[move_count].step[1].type = type;
-          moves[move_count].step[1].colour = colour;
+          move.step[move.step_count].from = victim_from;
+          move.step[move.step_count].to = victim_to;
+          move.step[move.step_count].type = victim_type;
+          move.step[move.step_count].colour = enemy;
 
-          moves[move_count].step_count = 2;
+          move.step[move.step_count + 1].from = push_from;
+          move.step[move.step_count + 1].to = victim_from;
+          move.step[move.step_count + 1].type = type;
+          move.step[move.step_count + 1].colour = colour;
+
+          move.step_count += 2;
+          moves[move_count] = move;
 
           move_count++;
 
@@ -193,7 +217,7 @@ int generate_push_steps(Position position, Move moves[]) {
   return move_count;
 }
 
-int generate_pull_steps(Position position, Move moves[]) {
+int generate_pull_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
@@ -210,7 +234,7 @@ int generate_pull_steps(Position position, Move moves[]) {
     while (pullers) {
       Square pull_from = first_square(pullers);
       Bitboard victims = square_neighbours[pull_from] & weaker;
-    
+
       while (victims) {
         Square victim_from = first_square(victims);
         Type victim_type = type_at_square(position, enemy, victim_from);
@@ -219,17 +243,20 @@ int generate_pull_steps(Position position, Move moves[]) {
         while (pull_steps) {
           Square piece_to = first_square(pull_steps);
 
-          moves[move_count].step[0].from = pull_from;
-          moves[move_count].step[0].to = piece_to;
-          moves[move_count].step[0].type = type;
-          moves[move_count].step[0].colour = colour;
+          Move move = current_move;
 
-          moves[move_count].step[1].from = victim_from;
-          moves[move_count].step[1].to = pull_from;
-          moves[move_count].step[1].type = victim_type;
-          moves[move_count].step[1].colour = enemy;
+          move.step[move.step_count].from = pull_from;
+          move.step[move.step_count].to = piece_to;
+          move.step[move.step_count].type = type;
+          move.step[move.step_count].colour = colour;
 
-          moves[move_count].step_count = 2;
+          move.step[move.step_count + 1].from = victim_from;
+          move.step[move.step_count + 1].to = pull_from;
+          move.step[move.step_count + 1].type = victim_type;
+          move.step[move.step_count + 1].colour = enemy;
+
+          move.step_count += 2;
+          moves[move_count] = move;
 
           move_count++;
 
@@ -245,36 +272,87 @@ int generate_pull_steps(Position position, Move moves[]) {
   return move_count;
 }
 
-int generate_moves(Position position, Move moves[]) {
-  int count = 0;
-  count += generate_single_steps(position, moves);
-  count += generate_push_steps(position, &moves[count]);
-  count += generate_pull_steps(position, &moves[count]);
-  return count;
+int generate_moves(Position position, Move current_move, Move moves[], int move_count) {
+  int new_count = 0;
+  Move new_moves[128];
+
+  if (current_move.step_count < 3) {
+    new_count += generate_push_steps(position, current_move, &new_moves[new_count]);
+    new_count += generate_pull_steps(position, current_move, &new_moves[new_count]);
+  }
+  if (current_move.step_count < 4) {
+    new_count += generate_single_steps(position, current_move, &new_moves[new_count]);
+  }
+
+  for (int i = 0; i < new_count; i++) {
+    Move move = new_moves[i];
+
+    Position next = position;
+    for (int step_number = current_move.step_count; step_number < move.step_count; step_number++) {
+      make_step(&next, move.step[step_number], step_number);
+    }
+
+    if (!load_transposition(next.hash)) {
+      store_transposition(next.hash, 1);
+
+      Position pass_position = next;
+      for (int step_number = move.step_count; step_number <= 4; step_number++) {
+        make_step(&pass_position, move.step[step_number], step_number);
+      }
+
+      if (!load_transposition(pass_position.hash)) {
+        store_transposition(pass_position.hash, 1);
+        moves[move_count++] = move;
+      }
+
+      if (move.step_count < 4) {
+        move_count = generate_moves(next, move, moves, move_count);
+      }
+    }
+  }
+
+  return move_count;
+}
+
+Score eval(Position position) {
+  Score gold_piece_surplus = __builtin_popcountl(position.pieces[GOLD][ALL]) - __builtin_popcountl(position.pieces[SILVER][ALL]);
+  if (position.turn % 2 == 0) {
+    return gold_piece_surplus;
+  } else {
+    return -gold_piece_surplus;
+  }
 }
 
 Move find_best_move(Position position) {
-  Move best_move;
-  Move moves[128];
-  int count = generate_moves(position, moves);
+  Move *moves = malloc(32000 * sizeof(Move));
+  Move move = new_move();
 
-  Position next = position;
-  int rand_move = rand() % count;
-  make_move(&next, moves[rand_move]);
-  best_move = moves[rand_move];
-  int best_score = -__builtin_popcountl(next.pieces[GOLD][ALL]); // + __builtin_popcountl(next.pieces[SILVER][ALL]);
+  int count = generate_moves(position, move, moves, 0);
+
+  Move best_move;
+  Score best_score = -INFINITY;
   for (int i = 0; i < count; i++) {
-    Position next;
+    Position next = position;
+
     make_move(&next, moves[i]);
-    int score = -__builtin_popcountl(next.pieces[GOLD][ALL]); // + __builtin_popcountl(next.pieces[SILVER][ALL]);
+
+    Score score = eval(next);
     if (score > best_score) {
       best_score = score;
       best_move = moves[i];
     }
   }
 
+  free(moves);
+
   return best_move;
 }
+
+void init_move_generation() {
+  init_piece_steps();
+  init_square_neighbours();
+}
+
 
 void print_bitboard(Bitboard bitboard) {
   for (int row = 7; row >= 0; row--) {
@@ -317,7 +395,75 @@ void print_position(Position position) {
   printf(" +-----------------+\n   a b c d e f g h\n");
 }
 
-void init_move_generation() {
-  init_piece_steps();
-  init_square_neighbours();
+void print_short_position(Position position) {
+  printf("[");
+  for (int row = 7; row >= 0; row--) {
+    for (int col = 0; col < 8; col++) {
+      Square square = row * 8 + col;
+
+      if (position.pieces[GOLD][ALL] & bitboard_at(square)) {
+        Type type = type_at_square(position, GOLD, square);
+        printf("%c", "-RCDHME-"[type]);
+      } else if (position.pieces[SILVER][ALL] & bitboard_at(square)) {
+        Type type = type_at_square(position, SILVER, square);
+        printf("%c", "-rcdhme-"[type]);
+      } else {
+        printf(" ");
+      }
+    }
+  }  
+  printf("]");
+}
+
+char piece_char(Colour colour, Type type) {
+  return "-RCDHME--rcdhme-"[ colour * 8 + type ];
+}
+
+void print_move(Position position, Move move) {
+  char move_str[128] = "";
+
+  for (int i = 0; i < move.step_count; ++i) {
+    Step step = move.step[i];
+    char piece = piece_char(step.colour, step.type);
+    char row = 'a' + (step.from & 7);
+    char col = '1' + (step.from / 8);
+    char direction;
+    switch (step.to - step.from) {
+      case  8: direction = 'n'; break;
+      case -8: direction = 's'; break;
+      case  1: direction = 'e'; break;
+      case -1: direction = 'w'; break;
+    }
+
+    char step_str[6];
+    sprintf(step_str, "%c%c%c%c ", piece, row, col, direction);
+    strcat(move_str, step_str);
+
+    // Captures piece step
+    position.pieces[step.colour][step.type] &= ~bitboard_at(step.from);
+    position.pieces[step.colour][step.type] |= bitboard_at(step.to);
+    position.pieces[step.colour][ALL] &= ~bitboard_at(step.from);
+    position.pieces[step.colour][ALL] |= bitboard_at(step.to);
+
+    Bitboard trap_pieces = position.pieces[step.colour][ALL] & TRAPS;
+    while (trap_pieces) {
+      Square trap_piece = first_square(trap_pieces);
+      Bitboard trap_square = bitboard_at(trap_piece);
+
+      if (!(position.pieces[step.colour][ALL] & square_neighbours[trap_piece])) {
+        piece = piece_char(step.colour, type_at_square(position, step.colour, trap_piece));
+        row = 'a' + (trap_piece & 7);
+        col = '1' + (trap_piece / 8);
+        sprintf(step_str, "%c%c%cx ", piece, row, col);
+        strcat(move_str, step_str);
+
+        position.pieces[step.colour][type_at_square(position, step.colour, trap_piece)] &= ~trap_square;
+        position.pieces[step.colour][ALL] &= ~trap_square;
+      }
+
+      trap_pieces &= ~trap_square;
+    }
+  }
+
+  puts(move_str);
 }

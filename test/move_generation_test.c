@@ -13,8 +13,9 @@ char * test_generate_single_steps() {
   char *step_str[] = { "Ra1", "eh8", "Hc2", "dd2" };
   makemove(&position, step_str, 4);
 
+  Move current_move = new_move();
   Move moves[128];
-  int count = generate_single_steps(position, moves);
+  int count = generate_single_steps(position, current_move, moves);
 
   mu_assert(count == 2);
 
@@ -36,8 +37,9 @@ char * test_generate_push_steps() {
   char *step_str[] = { "Mf5", "ef4", "re5", "Cb2", "dc2", "Hc1", "Hb7", "hb8" };
   makemove(&position, step_str, 8);
 
+  Move current_move = new_move();
   Move moves[128];
-  int count = generate_push_steps(position, moves);
+  int count = generate_push_steps(position, current_move, moves);
 
   mu_assert(count == 2);
 
@@ -69,8 +71,9 @@ char * test_generate_pull_steps() {
   char *step_str[] = { "Mf5", "ef4", "re4", "Cb2", "dc2", "Hc1", "Hb7", "hb8" };
   makemove(&position, step_str, 8);
 
+  Move current_move = new_move();
   Move moves[128];
-  int count = generate_pull_steps(position, moves);
+  int count = generate_pull_steps(position, current_move, moves);
 
   mu_assert(count == 2);
 
