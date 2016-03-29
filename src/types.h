@@ -1,10 +1,22 @@
+typedef int Boolean;
+#define TRUE 1
+#define FALSE 0
+
 typedef enum Colour { GOLD, SILVER, COLOUR_COUNT } Colour;
 typedef enum Type { ALL, RABBIT, CAT, DOG, HORSE, CAMEL, ELEPHANT, TYPE_COUNT } Type;
-typedef unsigned int Square;
+
+typedef unsigned char Square;
 #define SQUARE_COUNT 64
+
+// The Direction enum is ordered such that EMPTY_STEP and PASS_STEP are not valid steps
+typedef enum Direction { SOUTH, NORTH, WEST, EAST } Direction;
 
 // Indexed so that - a1 = 0, h1 = 7, a8 = 56, h8 = 63
 typedef unsigned long long Bitboard;
+Bitboard north(Bitboard bitboard);
+Bitboard south(Bitboard bitboard);
+Bitboard east(Bitboard bitboard);
+Bitboard west(Bitboard bitboard);
 
 // Useful bitboards
 #define NOT_A_FILE 0xfefefefefefefefeULL
@@ -28,17 +40,19 @@ typedef struct PlacePiece {
   Square square;
 } PlacePiece;
 
-typedef struct Step {
-  Square from:8;
-  Square to:8;
-  Type type:8;
-  Colour colour:8;
-} Step;
+typedef unsigned char Step;
+Step new_step(Square from, Square to);
+Square step_from(Step step);
+Square step_to(Step step);
+Direction step_direction(Step step);
+#define EMPTY_STEP 0
+#define PASS_STEP 0xff
+#define STEP_COUNT 4
 
 typedef struct Move {
-  int step_count;
-  Step step[4];
+  Step step[STEP_COUNT];
 } Move;
+int step_count(Move move);
 
 typedef int Score;
-#define INFINITY 0xffffffff
+#define INFINITY 0x100000 // 2^20

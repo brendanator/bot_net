@@ -3,6 +3,7 @@ bot_net
 
 *.cfg
 *.pgn
+*.txt
 
 logs/
 running/

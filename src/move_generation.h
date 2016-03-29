@@ -16,9 +16,11 @@ int generate_pull_steps(Position position, Move current_move, Move *moves);
 Square first_square(Bitboard board);
 Type type_at_square(Position position, Colour colour, Square square);
 Bitboard bitboard_at(Square square);
+Bitboard all_neighbours(Bitboard bitboard);
 Bitboard square_neighbours[SQUARE_COUNT];
 
 void print_position(Position position);
 void print_short_position(Position position);
 void print_bitboard(Bitboard bitboard);
+void print_step(Position position, Step step);
 void print_move(Position position, Move move);

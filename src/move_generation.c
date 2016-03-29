@@ -5,11 +5,7 @@
 #include "move_generation.h"
 
 Bitboard bitboard_at(Square square) {
-  if (square >= 0) {
-    return 1ULL << square;
-  } else {
-    return EMPTY;
-  }
+  return 1ULL << square;
 }
 
 Bitboard piece_steps[COLOUR_COUNT][TYPE_COUNT][SQUARE_COUNT];
@@ -18,17 +14,18 @@ void init_piece_steps() {
     for (Type type = 0; type < TYPE_COUNT; type++) {
       for (Square square = 0; square < SQUARE_COUNT; square++) {
         Bitboard steps = EMPTY;
+        Bitboard square_board = bitboard_at(square);
 
         if (type != RABBIT || colour == GOLD) {
-          steps |= (bitboard_at(square) & NOT_8_RANK) << 8; // north
+          steps |= north(square_board);
         }
 
         if (type != RABBIT || colour == SILVER) {
-          steps |= (bitboard_at(square) & NOT_1_RANK) >> 8; // south
+          steps |= south(square_board);
         }
 
-        steps |= (bitboard_at(square) & NOT_H_FILE) << 1;   // east
-        steps |= (bitboard_at(square) & NOT_A_FILE) >> 1;   // west
+        steps |= east(square_board);
+        steps |= west(square_board);
 
         piece_steps[colour][type][square] = steps;
       }
@@ -48,22 +45,17 @@ Position new_game() {
 }
 
 Move new_move() {
-  Move move = { .step_count = 0 };
+  Move move;
 
-  Step pass_step = { .from = 0, .to = 0, .type = 0, .colour = 0 };
-  for (int step_number = 0; step_number < 4; step_number++) {
-    move.step[step_number] = pass_step;
+  for (int step_number = 0; step_number < STEP_COUNT; step_number++) {
+    move.step[step_number] = EMPTY_STEP;
   }
 
   return move;
 }
 
 Bitboard all_neighbours(Bitboard board) {
-  return
-    (board & NOT_8_RANK) << 8 | // north
-    (board & NOT_1_RANK) >> 8 | // south
-    (board & NOT_H_FILE) << 1 | // east
-    (board & NOT_A_FILE) >> 1;  // west
+  return north(board) | south(board) | east(board) | west(board);
 }
 
 void init_square_neighbours() {
@@ -88,6 +80,18 @@ Type type_at_square(Position position, Colour colour, Square square) {
   return -1;
 }
 
+Colour colour_at_square(Position position, Square square) {
+  Bitboard target = bitboard_at(square);
+
+  for (Colour colour = GOLD; colour <= SILVER; colour++) {
+    if (position.pieces[colour][ALL] & target) {
+      return colour;
+    }
+  }
+
+  return -1;
+}
+
 void place_piece(Position *position, PlacePiece piece) {
   position->pieces[piece.colour][piece.type] |= bitboard_at(piece.square);
   position->pieces[piece.colour][ALL] |= bitboard_at(piece.square);
@@ -96,24 +100,34 @@ void place_piece(Position *position, PlacePiece piece) {
 }
 
 void make_step(Position *position, Step step, int step_number) {
-  position->pieces[step.colour][step.type] &= ~bitboard_at(step.from);
-  position->pieces[step.colour][step.type] |= bitboard_at(step.to);
-  position->pieces[step.colour][ALL] &= ~bitboard_at(step.from);
-  position->pieces[step.colour][ALL] |= bitboard_at(step.to);
+  if (step == PASS_STEP) {
+    position->hash = pass_update_hash(position->hash, position->turn >> 2, step_number);
+    return;
+  }
 
-  position->hash = step_update_hash(position->hash, step.colour, step.type, step.from, step.to, step_number);
+  Square from = step_from(step);
+  Square to = step_to(step);
+  Colour colour = colour_at_square(*position, from);
+  Type type = type_at_square(*position, colour, from);
 
-  Bitboard trap_pieces = position->pieces[step.colour][ALL] & TRAPS;
+  position->pieces[colour][type] &= ~bitboard_at(from);
+  position->pieces[colour][type] |= bitboard_at(to);
+  position->pieces[colour][ALL] &= ~bitboard_at(from);
+  position->pieces[colour][ALL] |= bitboard_at(to);
+
+  position->hash = step_update_hash(position->hash, colour, type, from, to, step_number);
+
+  Bitboard trap_pieces = position->pieces[colour][ALL] & TRAPS;
   while (trap_pieces) {
     Square trap_square = first_square(trap_pieces);
     Bitboard trap = bitboard_at(trap_square);
 
-    if (!(position->pieces[step.colour][ALL] & square_neighbours[trap_square])) {
-      Type type = type_at_square(*position, step.colour, trap_square);
-      position->pieces[step.colour][type] &= ~trap;
-      position->pieces[step.colour][ALL] &= ~trap;
+    if (!(position->pieces[colour][ALL] & square_neighbours[trap_square])) {
+      Type type = type_at_square(*position, colour, trap_square);
+      position->pieces[colour][type] &= ~trap;
+      position->pieces[colour][ALL] &= ~trap;
 
-      position->hash = capture_update_hash(position->hash, step.colour, type, trap_square);
+      position->hash = capture_update_hash(position->hash, colour, type, trap_square);
 
       break;
     }
@@ -123,13 +137,15 @@ void make_step(Position *position, Step step, int step_number) {
 }
 
 void make_move(Position *position, Move move) {
-  for (int step_number = 0; step_number < move.step_count; step_number++) {
+  int count = step_count(move);
+  for (int step_number = 0; step_number < count; step_number++) {
     make_step(position, move.step[step_number], step_number);
   }
 }
 
 int generate_single_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
+  int step_number = step_count(current_move);
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
   Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
@@ -148,16 +164,8 @@ int generate_single_steps(Position position, Move current_move, Move moves[]) {
         Square to = first_square(steps);
 
         Move move = current_move;
-
-        move.step[move.step_count].from = from;
-        move.step[move.step_count].to = to;
-        move.step[move.step_count].type = type;
-        move.step[move.step_count].colour = colour;
-
-        move.step_count++;
-        moves[move_count] = move;
-
-        move_count++;
+        move.step[step_number] = new_step(from, to);
+        moves[move_count++] = move;
 
         steps &= ~bitboard_at(to);
       }
@@ -171,6 +179,7 @@ int generate_single_steps(Position position, Move current_move, Move moves[]) {
 
 int generate_push_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
+  int step_number = step_count(current_move);
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
   Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
@@ -189,28 +198,15 @@ int generate_push_steps(Position position, Move current_move, Move moves[]) {
 
       while (victims) {
         Square victim_from = first_square(victims);
-        Type victim_type = type_at_square(position, enemy, victim_from);
         Bitboard victim_steps = empty_squares & piece_steps[enemy][ALL][victim_from];
 
         while (victim_steps) {
           Square victim_to = first_square(victim_steps);
 
           Move move = current_move;
-
-          move.step[move.step_count].from = victim_from;
-          move.step[move.step_count].to = victim_to;
-          move.step[move.step_count].type = victim_type;
-          move.step[move.step_count].colour = enemy;
-
-          move.step[move.step_count + 1].from = push_from;
-          move.step[move.step_count + 1].to = victim_from;
-          move.step[move.step_count + 1].type = type;
-          move.step[move.step_count + 1].colour = colour;
-
-          move.step_count += 2;
-          moves[move_count] = move;
-
-          move_count++;
+          move.step[step_number] = new_step(victim_from, victim_to);
+          move.step[step_number+1] = new_step(push_from, victim_from);
+          moves[move_count++] = move;
 
           victim_steps &= ~bitboard_at(victim_to);
         }
@@ -226,6 +222,7 @@ int generate_push_steps(Position position, Move current_move, Move moves[]) {
 
 int generate_pull_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
+  int step_number = step_count(current_move);
   Colour colour = position.turn & 1;
   Colour enemy = colour^1;
   Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
@@ -244,28 +241,15 @@ int generate_pull_steps(Position position, Move current_move, Move moves[]) {
 
       while (victims) {
         Square victim_from = first_square(victims);
-        Type victim_type = type_at_square(position, enemy, victim_from);
         Bitboard pull_steps = empty_squares & piece_steps[enemy][ALL][pull_from];
 
         while (pull_steps) {
           Square piece_to = first_square(pull_steps);
 
           Move move = current_move;
-
-          move.step[move.step_count].from = pull_from;
-          move.step[move.step_count].to = piece_to;
-          move.step[move.step_count].type = type;
-          move.step[move.step_count].colour = colour;
-
-          move.step[move.step_count + 1].from = victim_from;
-          move.step[move.step_count + 1].to = pull_from;
-          move.step[move.step_count + 1].type = victim_type;
-          move.step[move.step_count + 1].colour = enemy;
-
-          move.step_count += 2;
-          moves[move_count] = move;
-
-          move_count++;
+          move.step[step_number] = new_step(pull_from, piece_to);
+          move.step[step_number+1] = new_step(victim_from, pull_from);
+          moves[move_count++] = move;
 
           pull_steps &= ~bitboard_at(piece_to);
         }
@@ -282,20 +266,22 @@ int generate_pull_steps(Position position, Move current_move, Move moves[]) {
 int generate_moves(Position position, Move current_move, Move moves[], int move_count) {
   int new_count = 0;
   Move new_moves[128];
+  int current_step_count = step_count(current_move);
 
-  if (current_move.step_count < 3) {
+  if (current_step_count < STEP_COUNT-1) {
     new_count += generate_push_steps(position, current_move, &new_moves[new_count]);
     new_count += generate_pull_steps(position, current_move, &new_moves[new_count]);
   }
-  if (current_move.step_count < 4) {
+  if (current_step_count < STEP_COUNT) {
     new_count += generate_single_steps(position, current_move, &new_moves[new_count]);
   }
 
   for (int i = 0; i < new_count; i++) {
     Move move = new_moves[i];
+    int move_step_count = step_count(move);
 
     Position next = position;
-    for (int step_number = current_move.step_count; step_number < move.step_count; step_number++) {
+    for (int step_number = current_step_count; step_number < move_step_count; step_number++) {
       make_step(&next, move.step[step_number], step_number);
     }
 
@@ -303,8 +289,9 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
       store_transposition(next.hash, 1);
 
       Position pass_position = next;
-      for (int step_number = move.step_count; step_number <= 4; step_number++) {
-        make_step(&pass_position, move.step[step_number], step_number);
+      for (int step_number = move_step_count; step_number < STEP_COUNT; step_number++) {
+        move.step[step_number] = PASS_STEP;
+        make_step(&pass_position, PASS_STEP, step_number);
       }
 
       if (!load_transposition(pass_position.hash)) {
@@ -312,7 +299,7 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
         moves[move_count++] = move;
       }
 
-      if (move.step_count < 4) {
+      if (move_step_count < STEP_COUNT) {
         move_count = generate_moves(next, move, moves, move_count);
       }
     }
@@ -391,8 +378,10 @@ void init_move_generation() {
 
 
 void print_bitboard(Bitboard bitboard) {
+  printf("+-----------------+\n");
   for (int row = 7; row >= 0; row--) {
-    for (int col = 0; col < 8; col--) {
+    printf("| ");
+    for (int col = 0; col < 8; col++) {
       Square square = row * 8 + col;
       if (bitboard & bitboard_at(square)) {
         printf("x ");
@@ -400,8 +389,9 @@ void print_bitboard(Bitboard bitboard) {
         printf("  ");
       }
     }
-    printf("\n");
+    printf("|\n");
   }
+  printf("+-----------------+\n");
 }
 
 void print_position(Position position) {
@@ -432,7 +422,7 @@ void print_position(Position position) {
 }
 
 void print_short_position(Position position) {
-  printf("[");
+  printf("%d%c [", 1+position.turn/2, "gs"[position.turn%2]);
   for (int row = 7; row >= 0; row--) {
     for (int col = 0; col < 8; col++) {
       Square square = row * 8 + col;
@@ -455,51 +445,56 @@ char piece_char(Colour colour, Type type) {
   return "-RCDHME--rcdhme-"[ colour * 8 + type ];
 }
 
-void print_move(Position position, Move move) {
-  char move_str[128] = "";
+void print_step(Position position, Step step) {
+  Square from = step_from(step);
+  Square to = step_to(step);
+  Colour colour = colour_at_square(position, from);
+  Type type = type_at_square(position, colour, from);
 
-  for (int i = 0; i < move.step_count; ++i) {
-    Step step = move.step[i];
-    char piece = piece_char(step.colour, step.type);
-    char row = 'a' + (step.from & 7);
-    char col = '1' + (step.from / 8);
-    char direction;
-    switch (step.to - step.from) {
-      case  8: direction = 'n'; break;
-      case -8: direction = 's'; break;
-      case  1: direction = 'e'; break;
-      case -1: direction = 'w'; break;
+  char piece = piece_char(colour, type);
+  char row = 'a' + (from & 7);
+  char col = '1' + (from / 8);
+  char direction;
+  switch (step_direction(step)) {
+    case NORTH: direction = 'n'; break;
+    case SOUTH: direction = 's'; break;
+    case EAST: direction = 'e'; break;
+    case WEST: direction = 'w'; break;
+  }
+
+  printf("%c%c%c%c ", piece, row, col, direction);
+
+  position.pieces[colour][type] &= ~bitboard_at(from);
+  position.pieces[colour][type] |= bitboard_at(to);
+  position.pieces[colour][ALL] &= ~bitboard_at(from);
+  position.pieces[colour][ALL] |= bitboard_at(to);
+
+  Bitboard trap_pieces = position.pieces[colour][ALL] & TRAPS;
+  while (trap_pieces) {
+    Square trap_piece = first_square(trap_pieces);
+    Bitboard trap_square = bitboard_at(trap_piece);
+
+    if (!(position.pieces[colour][ALL] & square_neighbours[trap_piece])) {
+      piece = piece_char(colour, type_at_square(position, colour, trap_piece));
+      row = 'a' + (trap_piece & 7);
+      col = '1' + (trap_piece / 8);
+      printf("%c%c%cx ", piece, row, col);
+
+      position.pieces[colour][type_at_square(position, colour, trap_piece)] &= ~trap_square;
+      position.pieces[colour][ALL] &= ~trap_square;
     }
 
-    char step_str[6];
-    sprintf(step_str, "%c%c%c%c ", piece, row, col, direction);
-    strcat(move_str, step_str);
+    trap_pieces &= ~trap_square;
+  }  
+}
 
-    // Captures piece step
-    position.pieces[step.colour][step.type] &= ~bitboard_at(step.from);
-    position.pieces[step.colour][step.type] |= bitboard_at(step.to);
-    position.pieces[step.colour][ALL] &= ~bitboard_at(step.from);
-    position.pieces[step.colour][ALL] |= bitboard_at(step.to);
-
-    Bitboard trap_pieces = position.pieces[step.colour][ALL] & TRAPS;
-    while (trap_pieces) {
-      Square trap_piece = first_square(trap_pieces);
-      Bitboard trap_square = bitboard_at(trap_piece);
-
-      if (!(position.pieces[step.colour][ALL] & square_neighbours[trap_piece])) {
-        piece = piece_char(step.colour, type_at_square(position, step.colour, trap_piece));
-        row = 'a' + (trap_piece & 7);
-        col = '1' + (trap_piece / 8);
-        sprintf(step_str, "%c%c%cx ", piece, row, col);
-        strcat(move_str, step_str);
-
-        position.pieces[step.colour][type_at_square(position, step.colour, trap_piece)] &= ~trap_square;
-        position.pieces[step.colour][ALL] &= ~trap_square;
-      }
-
-      trap_pieces &= ~trap_square;
+void print_move(Position position, Move move) {
+  for (int i = 0; i < step_count(move); ++i) {
+    Step step = move.step[i];
+    if (step != PASS_STEP) {
+      print_step(position, step);
     }
   }
 
-  puts(move_str);
+  printf("\n");
 }

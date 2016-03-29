@@ -33,7 +33,7 @@ $(notdir $(TST_FILES:.c=)): $(filter-out obj/main.o, $(OBJ_FILES))
 	-@ $(CC) $(LD_FLAGS) -o $(TST_DIRECTORY)/$@ $(TST_DIRECTORY)/$@.c $^
 	-@ $(TST_DIRECTORY)/$@
 
-test: $(notdir $(TST_FILES:.c=))
+test: $(OBJ_DIRECTORY) $(notdir $(TST_FILES:.c=))
 
 clean:
 	-rm -rf $(OBJ_DIRECTORY) $(EXE)

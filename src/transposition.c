@@ -8,7 +8,7 @@
 */
 
 Hash piece_hashes[COLOUR_COUNT][TYPE_COUNT][SQUARE_COUNT];
-Hash colour_step_hashes[COLOUR_COUNT * 4]; // 4 steps per move 
+Hash colour_step_hashes[COLOUR_COUNT * STEP_COUNT];
 
 typedef struct TranpositionEntry {
   Hash key;
@@ -29,8 +29,8 @@ void init_transposition_table() {
       }
     }
 
-    for (int step = 0; step < 4; step++) {
-      colour_step_hashes[colour * 4 + step] = ((Hash) rand() << 32) ^ ((Hash) rand());
+    for (int step = 0; step < STEP_COUNT; step++) {
+      colour_step_hashes[colour * STEP_COUNT + step] = ((Hash) rand() << 32) ^ ((Hash) rand());
     }
   }
 }
@@ -47,7 +47,7 @@ Hash place_update_hash(Hash hash, Colour colour, Type type, Square square) {
 }
 
 int colour_step_hash(Colour colour, int step_number) {
-  int index = (colour*4 + step_number) & 7;
+  int index = (colour * STEP_COUNT + step_number) & 7; // Modulo 8
   return colour_step_hashes[index];
 }
 
@@ -57,6 +57,12 @@ Hash step_update_hash(Hash hash, Colour colour, Type type, Square from, Square t
     piece_hashes[colour][type][to] ^
     colour_step_hash(colour, step_number) ^
     colour_step_hash(colour, step_number+1);
+}
+
+Hash pass_update_hash(Hash hash, Colour colour, int step_number) {
+  return hash ^
+    colour_step_hash(colour, step_number) ^
+    colour_step_hash(colour, step_number+1);  
 }
 
 Hash capture_update_hash(Hash hash, Colour colour, Type type, Square square) {

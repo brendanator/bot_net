@@ -22,11 +22,33 @@ int parse_message(char *str, char *message, char *options[]) {
 }
 
 void aei() {
-  puts("protocol-version 1");
-  puts("id name bot_net");
-  puts("id author brendanator");
+  printf("protocol-version 1\n");
+  printf("id name bot_net\n");
+  printf("id author brendanator\n");
   printf("id version %s\n", version);
-  puts("aeiok");
+  printf("aeiok\n");
+}
+
+void setposition(Position *position, char *player, char *position_str) {
+  if (player[0] == 'g') {
+    position->turn = 2;
+  } else {
+    position->turn = 3;
+    for (int step_number = 0; step_number < STEP_COUNT; step_number++) {
+      make_step(position, PASS_STEP, step_number);
+    }
+  }
+
+  for (int i = 0; i < 63; i++) {
+    if (position_str[i+1] && position_str[i+1] != ' ') {
+      int piece_index = 16 - strlen(strchr("-RCDHME--rcdhme-", position_str[i+1]));
+      Colour colour = (piece_index/8) & 1;
+      Type type = piece_index & 7;
+      Square square = 8*(7 - i/8) + (i%8);
+      PlacePiece piece = { .colour = colour, .type = type, .square = square };
+      place_piece(position, piece);
+    }
+  }
 }
 
 void makemove(Position *position, char *step_str[], int count) {
@@ -35,32 +57,31 @@ void makemove(Position *position, char *step_str[], int count) {
   for (int i = 0; i < count; i++) {
     char *move_str = step_str[i];
 
-    int piece = 16 - strlen(strchr("-RCDHME--rcdhme-", move_str[0]));
-    Colour colour = piece / 8;
-    Type type = piece & 7;
-    int from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
-    int to;
+    Square from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
+    Square to = 0;
+    Boolean is_step = TRUE;
     switch (move_str[3]) {
-      case 'n': to = from + 8; break;
-      case 's': to = from - 8; break;
-      case 'e': to = from + 1; break;
-      case 'w': to = from - 1; break;
+      case 'n': to = from + 8;; break;
+      case 's': to = from - 8;; break;
+      case 'e': to = from + 1;; break;
+      case 'w': to = from - 1;; break;
       case 'x': continue;
-      default: to = from; from = -1;
+      default: is_step = FALSE;
     }
 
-    if (from >= 0) {
-      Step step = { .from = from, .to = to, .type = type, .colour = colour };
-      make_step(position, step, step_count++);
+    if (is_step) {
+      make_step(position, new_step(from, to), step_count++);
     } else {
-      PlacePiece piece = { .colour = colour, .type = type, .square = to };
+      int piece_index = 16 - strlen(strchr("-RCDHME--rcdhme-", move_str[0]));
+      Colour colour = piece_index / 8;
+      Type type = piece_index & 7;
+      PlacePiece piece = { .colour = colour, .type = type, .square = from };
       place_piece(position, piece);
     }
   }
 
-  Step pass_step = { .from = 0, .to = 0, .type = 0, .colour = 0 };
-  for (int step_number = step_count; step_number < 4; step_number++) {
-    make_step(position, pass_step, step_number);
+  for (int step_number = step_count; step_number < STEP_COUNT; step_number++) {
+    make_step(position, PASS_STEP, step_number);
   }
 
   position->turn++;
@@ -68,10 +89,10 @@ void makemove(Position *position, char *step_str[], int count) {
 
 void go(Position position) {
   if (position.turn == 0) {
-    puts("bestmove Ra1 Rb1 Rc1 Rd1 Re1 Rf1 Rg1 Rh1 Ha2 Db2 Cc2 Md2 Ee2 Cf2 Dg2 Hh2");
+    printf("bestmove Ra1 Rb1 Rc1 Rd1 Re1 Rf1 Rg1 Rh1 Ha2 Db2 Cc2 Md2 Ee2 Cf2 Dg2 Hh2\n");
     return;
   } else if (position.turn == 1) {
-    puts("bestmove ra8 rb8 rc8 rd8 re8 rf8 rg8 rh8 ha7 db7 cc7 ed7 me7 cf7 dg7 hh7");
+    printf("bestmove ra8 rb8 rc8 rd8 re8 rf8 rg8 rh8 ha7 db7 cc7 ed7 me7 cf7 dg7 hh7\n");
     return;
   }
 
@@ -92,18 +113,19 @@ void aei_loop() {
 
   for (;;) {
     getline(&controller_message, &bufsize, stdin);
+    printf("%s", controller_message);
     int option_count = parse_message(controller_message, message_type, options);
 
     if (strcmp(message_type, "aei") == 0) {
       aei();
     } else if (strcmp(message_type, "isready") == 0) {
-      puts("readyok");
+      printf("readyok\n");
     } else if (strcmp(message_type, "newgame") == 0) {
       game[0] = new_game();
       turn = 0;
       reset_transposition_table();
     } else if (strcmp(message_type, "setposition") == 0) {
-      // <side> <position>
+      setposition(&game[0], options[0], options[1]);
     } else if (strcmp(message_type, "setoption") == 0) {
       // name <id> [value <x>]
     } else if (strcmp(message_type, "makemove") == 0) {

@@ -2,7 +2,7 @@
 #include "../src/aei.h"
 
 char * test_bitboard_at_and_first_square() {
-  for (Square square = -1; square < 64; square++) {
+  for (Square square = 0; square < SQUARE_COUNT; square++) {
     mu_assert(first_square(bitboard_at(square)) == square);
   }
   return 0;
@@ -19,15 +19,11 @@ char * test_generate_single_steps() {
 
   mu_assert(count == 2);
 
-  mu_assert(moves[0].step[0].from == 63);
-  mu_assert(moves[0].step[0].to == 55);
-  mu_assert(moves[0].step[0].colour == SILVER);
-  mu_assert(moves[0].step[0].type == ELEPHANT);
+  mu_assert(step_from(moves[0].step[0]) == 63);
+  mu_assert(step_to(moves[0].step[0]) == 55);
 
-  mu_assert(moves[1].step[0].from == 63);
-  mu_assert(moves[1].step[0].to == 62);
-  mu_assert(moves[1].step[0].colour == SILVER);
-  mu_assert(moves[1].step[0].type == ELEPHANT);
+  mu_assert(step_from(moves[1].step[0]) == 63);
+  mu_assert(step_to(moves[1].step[0]) == 62);
 
   return 0;
 }
@@ -43,25 +39,15 @@ char * test_generate_push_steps() {
 
   mu_assert(count == 2);
 
-  mu_assert(moves[0].step[0].from == 37);
-  mu_assert(moves[0].step[0].to == 38);
-  mu_assert(moves[0].step[0].colour == GOLD);
-  mu_assert(moves[0].step[0].type == CAMEL);
+  mu_assert(step_from(moves[0].step[0]) == 37);
+  mu_assert(step_to(moves[0].step[0]) == 38);
+  mu_assert(step_from(moves[0].step[1]) == 29);
+  mu_assert(step_to(moves[0].step[1]) == 37);
 
-  mu_assert(moves[0].step[1].from == 29);
-  mu_assert(moves[0].step[1].to == 37);
-  mu_assert(moves[0].step[1].colour == SILVER);
-  mu_assert(moves[0].step[1].type == ELEPHANT);
-
-  mu_assert(moves[1].step[0].from == 37);
-  mu_assert(moves[1].step[0].to == 45);
-  mu_assert(moves[1].step[0].colour == GOLD);
-  mu_assert(moves[1].step[0].type == CAMEL);
-
-  mu_assert(moves[1].step[1].from == 29);
-  mu_assert(moves[1].step[1].to == 37);
-  mu_assert(moves[1].step[1].colour == SILVER);
-  mu_assert(moves[1].step[1].type == ELEPHANT);
+  mu_assert(step_from(moves[1].step[0]) == 37);
+  mu_assert(step_to(moves[1].step[0]) == 45);
+  mu_assert(step_from(moves[1].step[1]) == 29);
+  mu_assert(step_to(moves[1].step[1]) == 37);
 
   return 0;
 }
@@ -77,25 +63,15 @@ char * test_generate_pull_steps() {
 
   mu_assert(count == 2);
 
-  mu_assert(moves[0].step[0].from == 29);
-  mu_assert(moves[0].step[0].to == 21);
-  mu_assert(moves[0].step[0].colour == SILVER);
-  mu_assert(moves[0].step[0].type == ELEPHANT);
+  mu_assert(step_from(moves[0].step[0]) == 29);
+  mu_assert(step_to(moves[0].step[0]) == 21);
+  mu_assert(step_from(moves[0].step[1]) == 37);
+  mu_assert(step_to(moves[0].step[1]) == 29);
 
-  mu_assert(moves[0].step[1].from == 37);
-  mu_assert(moves[0].step[1].to == 29);
-  mu_assert(moves[0].step[1].colour == GOLD);
-  mu_assert(moves[0].step[1].type == CAMEL);
-
-  mu_assert(moves[1].step[0].from == 29);
-  mu_assert(moves[1].step[0].to == 30);
-  mu_assert(moves[1].step[0].colour == SILVER);
-  mu_assert(moves[1].step[0].type == ELEPHANT);
-
-  mu_assert(moves[1].step[1].from == 37);
-  mu_assert(moves[1].step[1].to == 29);
-  mu_assert(moves[1].step[1].colour == GOLD);
-  mu_assert(moves[1].step[1].type == CAMEL);
+  mu_assert(step_from(moves[1].step[0]) == 29);
+  mu_assert(step_to(moves[1].step[0]) == 30);
+  mu_assert(step_from(moves[1].step[1]) == 37);
+  mu_assert(step_to(moves[1].step[1]) == 29);
 
   return 0;
 }

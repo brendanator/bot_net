@@ -4,3 +4,4 @@
 - How are steps generated without duplicates? 
     + Is the transposition table used?
     + How are pointless steps removed like a back and forth step?
+- quiescent search
