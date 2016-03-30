@@ -1,7 +1,7 @@
 #include "minunit.h"
 
 #include "../src/move_generation.h"
-
+#include "../src/transposition.h"
 char * test_direction() {
   Bitboard board = north(bitboard_at(0));
   mu_assert(board ^ bitboard_at(0));

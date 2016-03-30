@@ -33,7 +33,9 @@ typedef struct Position {
   Bitboard pieces[COLOUR_COUNT][TYPE_COUNT];
   int turn;
   Hash hash;
+  bool gameover;
 } Position;
+Position new_game();
 
 typedef struct PlacePiece {
   Colour colour;
@@ -53,6 +55,7 @@ Direction step_direction(Step step);
 typedef struct Move {
   Step step[STEP_COUNT];
 } Move;
+Move new_move();
 int step_count(Move move);
 
 typedef int Score;

@@ -28,27 +28,6 @@ void init_move_generation() {
   }
 }
 
-Position new_game() {
-  Position position = { .turn = 0, .hash = 0ULL };
-
-  for (Type type = ALL; type <= ELEPHANT; type++) {
-    position.pieces[GOLD][type] = EMPTY;
-    position.pieces[SILVER][type] = EMPTY;
-  }
-
-  return position;
-}
-
-Move new_move() {
-  Move move;
-
-  for (int step_number = 0; step_number < STEP_COUNT; step_number++) {
-    move.step[step_number] = EMPTY_STEP;
-  }
-
-  return move;
-}
-
 void place_piece(Position *position, PlacePiece piece) {
   position->pieces[piece.colour][piece.type] |= bitboard_at(piece.square);
   position->pieces[piece.colour][ALL] |= bitboard_at(piece.square);
@@ -242,8 +221,10 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
       make_step(&next, move.step[step_number], step_number);
     }
 
-    if (!load_transposition(next.hash)) {
-      store_transposition(next.hash, 1);
+    Transposition transposition;
+    if (!load_transposition(next, &transposition)) {
+      Transposition transposition = { .score = 1, .bound = EXACT };
+      save_transposition(next, transposition);
 
       Position pass_position = next;
       for (int step_number = move_step_count; step_number < STEP_COUNT; step_number++) {
@@ -251,8 +232,9 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
         make_step(&pass_position, PASS_STEP, step_number);
       }
 
-      if (!load_transposition(pass_position.hash)) {
-        store_transposition(pass_position.hash, 1);
+      if (!load_transposition(pass_position, &transposition)) {
+        Transposition transposition = { .score = 1, .bound = EXACT };
+        save_transposition(next, transposition);
         moves[move_count++] = move;
       }
 

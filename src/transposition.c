@@ -1,6 +1,7 @@
 #include "transposition.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 /*
   Positions are hashed using Zobrist hashing
@@ -12,12 +13,12 @@ Hash colour_step_hashes[COLOUR_COUNT * STEP_COUNT];
 
 typedef struct TranpositionEntry {
   Hash key;
-  Hash value;
+  Transposition value;
 } TranpositionEntry;
 
 #define TRANPOSITION_ENTRY_COUNT 0x100000 // Must be power of 2
 TranpositionEntry transposition_table[TRANPOSITION_ENTRY_COUNT];
-int TABLE_MASK = TRANPOSITION_ENTRY_COUNT-1;
+int INDEX_MASK = TRANPOSITION_ENTRY_COUNT-1;
 
 void init_transposition_table() {
   srand(0);
@@ -36,10 +37,7 @@ void init_transposition_table() {
 }
 
 void reset_transposition_table() {
-  TranpositionEntry empty_entry = { .key = 0, .value = 0 };
-  for (int i = 0; i < TRANPOSITION_ENTRY_COUNT; i++) {
-    transposition_table[i] = empty_entry;
-  }  
+  memset(&transposition_table, 0, sizeof(transposition_table));
 }
 
 Hash place_update_hash(Hash hash, Colour colour, Type type, Square square) {
@@ -47,7 +45,7 @@ Hash place_update_hash(Hash hash, Colour colour, Type type, Square square) {
 }
 
 int colour_step_hash(Colour colour, int step_number) {
-  int index = (colour * STEP_COUNT + step_number) & 7; // Modulo 8
+  int index = (colour * STEP_COUNT + step_number) % 8;
   return colour_step_hashes[index];
 }
 
@@ -69,22 +67,24 @@ Hash capture_update_hash(Hash hash, Colour colour, Type type, Square square) {
   return hash ^ piece_hashes[colour][type][square];
 }
 
-void store_transposition(Hash hash, Hash value) {
-  TranpositionEntry entry;
-  entry.key = hash ^ value;
-  entry.value = value;
-
-  int index = hash & TABLE_MASK;
-  transposition_table[index] = entry;
+Hash xor(Hash hash, Transposition transposition) {
+  Hash value;
+  memcpy(&value, &transposition, sizeof(value));
+  return hash ^ value;
 }
 
-Hash load_transposition(Hash hash) {
-  int index = hash & TABLE_MASK;
-  TranpositionEntry entry = transposition_table[index];
+void save_transposition(Position position, Transposition transposition) {
+  TranpositionEntry entry = { .key = xor(position.hash, transposition), .value = transposition };
+  transposition_table[position.hash & INDEX_MASK] = entry;
+}
 
-  if ((entry.key ^ entry.value) == hash) {
-    return entry.value;
+bool load_transposition(Position position, Transposition *transposition) {
+  TranpositionEntry entry = transposition_table[position.hash & INDEX_MASK];
+
+  if (xor(entry.key, entry.value) == position.hash) {
+    *transposition = entry.value;
+    return true;
   } else {
-    return 0;
+    return false;
   }
 }

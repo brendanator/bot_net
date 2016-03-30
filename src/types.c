@@ -17,6 +17,21 @@ Bitboard west(Bitboard bitboard) {
   return (bitboard & NOT_A_FILE) >> 1;
 }
 
+Position new_game() {
+  Position position = { .turn = 0, .hash = 0ULL };
+
+  for (Type type = ALL; type <= ELEPHANT; type++) {
+    position.pieces[GOLD][type] = EMPTY;
+    position.pieces[SILVER][type] = EMPTY;
+  }
+
+  return position;
+}
+
+Move new_move() {
+  Move move = { .step = { EMPTY_STEP, EMPTY_STEP, EMPTY_STEP, EMPTY_STEP } };
+  return move;
+}
 
 Step new_step(Square from, Square to) {
   Direction direction;

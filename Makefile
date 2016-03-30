@@ -20,6 +20,9 @@ all: $(OBJ_DIRECTORY) $(EXE)
 $(EXE): $(OBJ_FILES)
 	$(CC) $(LD_FLAGS) -o $@ $^
 
+prod: FLAGS = -Wall -Wextra -O3 -lto
+prod: clean $(OBJ_DIRECTORY) $(EXE)
+
 $(OBJ_DIRECTORY):
 	mkdir $(OBJ_DIRECTORY)
 
