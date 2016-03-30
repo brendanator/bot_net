@@ -113,7 +113,7 @@ int generate_single_steps(Position position, Move current_move, Move moves[]) {
   return move_count;
 }
 
-int generate_push_steps(Position position, Move current_move, Move moves[]) {
+int generate_push_pull_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
   int step_number = step_count(current_move);
   Colour colour = position.turn & 1;
@@ -126,74 +126,43 @@ int generate_push_steps(Position position, Move current_move, Move moves[]) {
     stronger &= ~position.pieces[enemy][type];
     weaker |= position.pieces[enemy][type-1];
     Bitboard unfrozen = all_neighbours(position.pieces[colour][ALL]) | (~all_neighbours(stronger));
-    Bitboard pushers = position.pieces[colour][type] & all_neighbours(weaker) & unfrozen;
+    Bitboard attackers = position.pieces[colour][type] & all_neighbours(weaker) & unfrozen;
 
-    while (pushers) {
-      Square push_from = first_square(pushers);
-      Bitboard victims = square_neighbours(push_from) & weaker;
+    while (attackers) {
+      Square attack_square = first_square(attackers);
+      Bitboard victims = square_neighbours(attack_square) & weaker;
 
       while (victims) {
-        Square victim_from = first_square(victims);
-        Bitboard victim_steps = empty_squares & piece_steps[enemy][ALL][victim_from];
+        Square victim_square = first_square(victims);
 
-        while (victim_steps) {
-          Square victim_to = first_square(victim_steps);
+        Bitboard push_steps = empty_squares & piece_steps[enemy][ALL][victim_square];
+        while (push_steps) {
+          Square victim_to = first_square(push_steps);
 
           Move move = current_move;
-          move.step[step_number] = new_step(victim_from, victim_to);
-          move.step[step_number+1] = new_step(push_from, victim_from);
+          move.step[step_number] = new_step(victim_square, victim_to);
+          move.step[step_number+1] = new_step(attack_square, victim_square);
           moves[move_count++] = move;
 
-          victim_steps &= ~bitboard_at(victim_to);
+          push_steps &= ~bitboard_at(victim_to);
         }
 
-        victims &= ~bitboard_at(victim_from);
-      }
-
-      pushers &= ~bitboard_at(push_from);
-    }
-  }
-  return move_count;
-}
-
-int generate_pull_steps(Position position, Move current_move, Move moves[]) {
-  int move_count = 0;
-  int step_number = step_count(current_move);
-  Colour colour = position.turn & 1;
-  Colour enemy = colour^1;
-  Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
-  Bitboard stronger = position.pieces[enemy][ALL] & ~position.pieces[enemy][RABBIT];
-  Bitboard weaker = EMPTY;
-
-  for (Type type = CAT; type <= ELEPHANT; type++) {
-    stronger &= ~position.pieces[enemy][type];
-    weaker |= position.pieces[enemy][type-1];
-    Bitboard unfrozen = all_neighbours(position.pieces[colour][ALL]) | (~all_neighbours(stronger));
-    Bitboard pullers = position.pieces[colour][type] & all_neighbours(weaker) & unfrozen;
-
-    while (pullers) {
-      Square pull_from = first_square(pullers);
-      Bitboard victims = square_neighbours(pull_from) & weaker;
-
-      while (victims) {
-        Square victim_from = first_square(victims);
-        Bitboard pull_steps = empty_squares & piece_steps[enemy][ALL][pull_from];
-
+        Bitboard pull_steps = empty_squares & piece_steps[enemy][ALL][attack_square];
         while (pull_steps) {
           Square piece_to = first_square(pull_steps);
 
           Move move = current_move;
-          move.step[step_number] = new_step(pull_from, piece_to);
-          move.step[step_number+1] = new_step(victim_from, pull_from);
+          move.step[step_number] = new_step(attack_square, piece_to);
+          move.step[step_number+1] = new_step(victim_square, attack_square);
           moves[move_count++] = move;
 
           pull_steps &= ~bitboard_at(piece_to);
         }
 
-        victims &= ~bitboard_at(victim_from);
+        victims &= ~bitboard_at(victim_square);
       }
 
-      pullers &= ~bitboard_at(pull_from);
+      attackers &= ~bitboard_at(attack_square);
     }
   }
   return move_count;
@@ -205,8 +174,7 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
   int current_step_count = step_count(current_move);
 
   if (current_step_count < STEP_COUNT-1) {
-    new_count += generate_push_steps(position, current_move, &new_moves[new_count]);
-    new_count += generate_pull_steps(position, current_move, &new_moves[new_count]);
+    new_count += generate_push_pull_steps(position, current_move, &new_moves[new_count]);
   }
   if (current_step_count < STEP_COUNT) {
     new_count += generate_single_steps(position, current_move, &new_moves[new_count]);
