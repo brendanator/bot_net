@@ -1,8 +1,9 @@
-#include <stdlib.h>
-#include <string.h>
-
 #include "minunit.h"
+
 #include "../src/aei.h"
+#include "../src/move_generation.h"
+
+#include <string.h>
 
 char * test_parse_message() {
   char input[32];

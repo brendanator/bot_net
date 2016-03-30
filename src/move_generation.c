@@ -1,15 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "move_generation.h"
+#include "transposition.h"
 
-Bitboard bitboard_at(Square square) {
-  return 1ULL << square;
-}
+#include <stdlib.h>
 
 Bitboard piece_steps[COLOUR_COUNT][TYPE_COUNT][SQUARE_COUNT];
-void init_piece_steps() {
+void init_move_generation() {
   for (Colour colour = 0; colour < COLOUR_COUNT; colour++) {
     for (Type type = 0; type < TYPE_COUNT; type++) {
       for (Square square = 0; square < SQUARE_COUNT; square++) {
@@ -54,44 +49,6 @@ Move new_move() {
   return move;
 }
 
-Bitboard all_neighbours(Bitboard board) {
-  return north(board) | south(board) | east(board) | west(board);
-}
-
-void init_square_neighbours() {
-  for (Square square = 0; square < SQUARE_COUNT; square++) {
-    square_neighbours[square] = all_neighbours(bitboard_at(square));
-  }
-}
-
-Square first_square(Bitboard board) {
-  return __builtin_ffsl(board) - 1;
-}
-
-Type type_at_square(Position position, Colour colour, Square square) {
-  Bitboard target = bitboard_at(square);
-
-  for (Type type = RABBIT; type <= ELEPHANT; type++) {
-    if (position.pieces[colour][type] & target) {
-      return type;
-    }
-  }
-
-  return -1;
-}
-
-Colour colour_at_square(Position position, Square square) {
-  Bitboard target = bitboard_at(square);
-
-  for (Colour colour = GOLD; colour <= SILVER; colour++) {
-    if (position.pieces[colour][ALL] & target) {
-      return colour;
-    }
-  }
-
-  return -1;
-}
-
 void place_piece(Position *position, PlacePiece piece) {
   position->pieces[piece.colour][piece.type] |= bitboard_at(piece.square);
   position->pieces[piece.colour][ALL] |= bitboard_at(piece.square);
@@ -122,7 +79,7 @@ void make_step(Position *position, Step step, int step_number) {
     Square trap_square = first_square(trap_pieces);
     Bitboard trap = bitboard_at(trap_square);
 
-    if (!(position->pieces[colour][ALL] & square_neighbours[trap_square])) {
+    if (!(position->pieces[colour][ALL] & square_neighbours(trap_square))) {
       Type type = type_at_square(*position, colour, trap_square);
       position->pieces[colour][type] &= ~trap;
       position->pieces[colour][ALL] &= ~trap;
@@ -194,7 +151,7 @@ int generate_push_steps(Position position, Move current_move, Move moves[]) {
 
     while (pushers) {
       Square push_from = first_square(pushers);
-      Bitboard victims = square_neighbours[push_from] & weaker;
+      Bitboard victims = square_neighbours(push_from) & weaker;
 
       while (victims) {
         Square victim_from = first_square(victims);
@@ -237,7 +194,7 @@ int generate_pull_steps(Position position, Move current_move, Move moves[]) {
 
     while (pullers) {
       Square pull_from = first_square(pullers);
-      Bitboard victims = square_neighbours[pull_from] & weaker;
+      Bitboard victims = square_neighbours(pull_from) & weaker;
 
       while (victims) {
         Square victim_from = first_square(victims);
@@ -306,195 +263,4 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
   }
 
   return move_count;
-}
-
-Score eval(Position position) {
-  Score gold_piece_surplus = __builtin_popcountl(position.pieces[GOLD][ALL]) - __builtin_popcountl(position.pieces[SILVER][ALL]);
-  if (position.turn % 2 == 0) {
-    return gold_piece_surplus;
-  } else {
-    return -gold_piece_surplus;
-  }
-}
-
-Score negamax(Position position, Score alpha, Score beta, int depth) {
-  if (depth <= 0) return eval(position);
-
-  Move *moves = malloc(32000 * sizeof(Move));
-  Move move = new_move();
-  int count = generate_moves(position, move, moves, 0);
-
-  Score best_score = -INFINITY;
-
-  for (int i = 0; i < count; i++) {
-    Position next = position;
-
-    make_move(&next, moves[i]);
-
-    Score score = -negamax(next, -beta, -alpha, depth-1);
-    if (score > best_score) {
-      best_score = score;
-    }
-    if (score > alpha) {
-      alpha = score;
-    }
-    if (alpha >= beta) {
-      break;
-    }
-  }
-
-  return best_score;
-}
-
-Move find_best_move(Position position) {
-  Move *moves = malloc(32000 * sizeof(Move));
-  Move move = new_move();
-
-  int count = generate_moves(position, move, moves, 0);
-
-  Move best_move;
-  Score best_score = -INFINITY;
-  for (int i = 0; i < count; i++) {
-    Position next = position;
-
-    make_move(&next, moves[i]);
-
-    Score score = eval(next);
-    if (score > best_score) {
-      best_score = score;
-      best_move = moves[i];
-    }
-  }
-
-  free(moves);
-
-  return best_move;
-}
-
-void init_move_generation() {
-  init_piece_steps();
-  init_square_neighbours();
-}
-
-
-void print_bitboard(Bitboard bitboard) {
-  printf("+-----------------+\n");
-  for (int row = 7; row >= 0; row--) {
-    printf("| ");
-    for (int col = 0; col < 8; col++) {
-      Square square = row * 8 + col;
-      if (bitboard & bitboard_at(square)) {
-        printf("x ");
-      } else {
-        printf("  ");
-      }
-    }
-    printf("|\n");
-  }
-  printf("+-----------------+\n");
-}
-
-void print_position(Position position) {
-  printf("%d%c\n", 1+position.turn/2, "gs"[position.turn%2]);
-  printf(" +-----------------+\n");
-  for (int row = 7; row >= 0; row--) {
-    printf("%d| ", row+1);
-    for (int col = 0; col < 8; col++) {
-      Square square = row * 8 + col;
-
-      if (position.pieces[GOLD][ALL] & bitboard_at(square)) {
-        Type type = type_at_square(position, GOLD, square);
-        printf("%c", "-RCDHME-"[type]);
-      } else if (position.pieces[SILVER][ALL] & bitboard_at(square)) {
-        Type type = type_at_square(position, SILVER, square);
-        printf("%c", "-rcdhme-"[type]);
-      } else if (TRAPS & bitboard_at(square)) {
-        printf("x");
-      } else {
-        printf(".");
-      }
-
-      printf(" ");
-    }
-    printf("|\n");
-  }
-  printf(" +-----------------+\n   a b c d e f g h\n");
-}
-
-void print_short_position(Position position) {
-  printf("%d%c [", 1+position.turn/2, "gs"[position.turn%2]);
-  for (int row = 7; row >= 0; row--) {
-    for (int col = 0; col < 8; col++) {
-      Square square = row * 8 + col;
-
-      if (position.pieces[GOLD][ALL] & bitboard_at(square)) {
-        Type type = type_at_square(position, GOLD, square);
-        printf("%c", "-RCDHME-"[type]);
-      } else if (position.pieces[SILVER][ALL] & bitboard_at(square)) {
-        Type type = type_at_square(position, SILVER, square);
-        printf("%c", "-rcdhme-"[type]);
-      } else {
-        printf(" ");
-      }
-    }
-  }
-  printf("]");
-}
-
-char piece_char(Colour colour, Type type) {
-  return "-RCDHME--rcdhme-"[ colour * 8 + type ];
-}
-
-void print_step(Position position, Step step) {
-  Square from = step_from(step);
-  Square to = step_to(step);
-  Colour colour = colour_at_square(position, from);
-  Type type = type_at_square(position, colour, from);
-
-  char piece = piece_char(colour, type);
-  char row = 'a' + (from & 7);
-  char col = '1' + (from / 8);
-  char direction;
-  switch (step_direction(step)) {
-    case NORTH: direction = 'n'; break;
-    case SOUTH: direction = 's'; break;
-    case EAST: direction = 'e'; break;
-    case WEST: direction = 'w'; break;
-  }
-
-  printf("%c%c%c%c ", piece, row, col, direction);
-
-  position.pieces[colour][type] &= ~bitboard_at(from);
-  position.pieces[colour][type] |= bitboard_at(to);
-  position.pieces[colour][ALL] &= ~bitboard_at(from);
-  position.pieces[colour][ALL] |= bitboard_at(to);
-
-  Bitboard trap_pieces = position.pieces[colour][ALL] & TRAPS;
-  while (trap_pieces) {
-    Square trap_piece = first_square(trap_pieces);
-    Bitboard trap_square = bitboard_at(trap_piece);
-
-    if (!(position.pieces[colour][ALL] & square_neighbours[trap_piece])) {
-      piece = piece_char(colour, type_at_square(position, colour, trap_piece));
-      row = 'a' + (trap_piece & 7);
-      col = '1' + (trap_piece / 8);
-      printf("%c%c%cx ", piece, row, col);
-
-      position.pieces[colour][type_at_square(position, colour, trap_piece)] &= ~trap_square;
-      position.pieces[colour][ALL] &= ~trap_square;
-    }
-
-    trap_pieces &= ~trap_square;
-  }  
-}
-
-void print_move(Position position, Move move) {
-  for (int i = 0; i < step_count(move); ++i) {
-    Step step = move.step[i];
-    if (step != PASS_STEP) {
-      print_step(position, step);
-    }
-  }
-
-  printf("\n");
 }

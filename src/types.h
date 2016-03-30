@@ -1,6 +1,7 @@
-typedef int Boolean;
-#define TRUE 1
-#define FALSE 0
+#ifndef TYPES_H
+#define TYPES_H
+
+#include <stdbool.h>
 
 typedef enum Colour { GOLD, SILVER, COLOUR_COUNT } Colour;
 typedef enum Type { ALL, RABBIT, CAT, DOG, HORSE, CAMEL, ELEPHANT, TYPE_COUNT } Type;
@@ -56,3 +57,12 @@ int step_count(Move move);
 
 typedef int Score;
 #define INFINITY 0x100000 // 2^20
+
+Square first_square(Bitboard board);
+Colour colour_at_square(Position position, Square square);
+Type type_at_square(Position position, Colour colour, Square square);
+Bitboard bitboard_at(Square square);
+Bitboard all_neighbours(Bitboard bitboard);
+Bitboard square_neighbours(Square square);
+
+#endif // TYPES_H

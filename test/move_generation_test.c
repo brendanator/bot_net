@@ -1,5 +1,7 @@
 #include "minunit.h"
+
 #include "../src/aei.h"
+#include "../src/move_generation.h"
 
 char * test_bitboard_at_and_first_square() {
   for (Square square = 0; square < SQUARE_COUNT; square++) {

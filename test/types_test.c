@@ -1,7 +1,5 @@
-#include <stdlib.h>
-#include <string.h>
-
 #include "minunit.h"
+
 #include "../src/move_generation.h"
 
 char * test_direction() {

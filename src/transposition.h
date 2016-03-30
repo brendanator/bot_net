@@ -1,3 +1,6 @@
+#ifndef TRANSPOSITION_H
+#define TRANSPOSITION_H
+
 #include "types.h"
 
 void init_transposition_table();
@@ -10,3 +13,5 @@ Hash capture_update_hash(Hash hash, Colour colour, Type type, Square square);
 
 void store_transposition(Hash hash, Hash value);
 Hash load_transposition(Hash hash);
+
+#endif //TRANSPOSITION_H

@@ -56,3 +56,44 @@ int step_count(Move move) {
   }
   return STEP_COUNT;
 }
+
+
+Bitboard bitboard_at(Square square) {
+  return 1ULL << square;
+}
+
+Bitboard all_neighbours(Bitboard board) {
+  return north(board) | south(board) | east(board) | west(board);
+}
+
+Bitboard square_neighbours(Square square) {
+  return all_neighbours(bitboard_at(square));
+}
+
+Square first_square(Bitboard board) {
+  return __builtin_ffsl(board) - 1;
+}
+
+Type type_at_square(Position position, Colour colour, Square square) {
+  Bitboard target = bitboard_at(square);
+
+  for (Type type = RABBIT; type <= ELEPHANT; type++) {
+    if (position.pieces[colour][type] & target) {
+      return type;
+    }
+  }
+
+  return -1;
+}
+
+Colour colour_at_square(Position position, Square square) {
+  Bitboard target = bitboard_at(square);
+
+  for (Colour colour = GOLD; colour <= SILVER; colour++) {
+    if (position.pieces[colour][ALL] & target) {
+      return colour;
+    }
+  }
+
+  return -1;
+}

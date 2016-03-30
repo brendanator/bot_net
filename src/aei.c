@@ -1,8 +1,12 @@
+#include "aei.h"
+#include "search.h"
+#include "move_generation.h"
+#include "transposition.h"
+#include "print.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "aei.h"
 
 int parse_message(char *str, char *message, char *options[]) {
   int count = 0;
@@ -59,14 +63,14 @@ void makemove(Position *position, char *step_str[], int count) {
 
     Square from = (7 ^ ('h' - move_str[1]))  +  ((move_str[2] - '1') * 8);
     Square to = 0;
-    Boolean is_step = TRUE;
+    bool is_step = true;
     switch (move_str[3]) {
       case 'n': to = from + 8;; break;
       case 's': to = from - 8;; break;
       case 'e': to = from + 1;; break;
       case 'w': to = from - 1;; break;
       case 'x': continue;
-      default: is_step = FALSE;
+      default: is_step = false;
     }
 
     if (is_step) {
