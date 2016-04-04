@@ -37,7 +37,7 @@ void place_piece(Position *position, PlacePiece piece) {
 
 void make_step(Position *position, Step step, int step_number) {
   if (step == PASS_STEP) {
-    position->hash = pass_update_hash(position->hash, position->turn >> 2, step_number);
+    position->hash = pass_update_hash(position->hash, position->turn % 2, step_number);
     return;
   }
 
@@ -53,22 +53,17 @@ void make_step(Position *position, Step step, int step_number) {
 
   position->hash = step_update_hash(position->hash, colour, type, from, to, step_number);
 
-  Bitboard trap_pieces = position->pieces[colour][ALL] & TRAPS;
-  while (trap_pieces) {
-    Square trap_square = first_square(trap_pieces);
-    Bitboard trap = bitboard_at(trap_square);
+  Bitboard trap = square_neighbours(from) & TRAPS;
+  if (trap) {
+    Square trap_square = first_square(trap);
 
-    if (!(position->pieces[colour][ALL] & square_neighbours(trap_square))) {
+    if (position->pieces[colour][ALL] & trap && !(position->pieces[colour][ALL] & square_neighbours(trap_square))) {
       Type type = type_at_square(*position, colour, trap_square);
       position->pieces[colour][type] &= ~trap;
       position->pieces[colour][ALL] &= ~trap;
 
       position->hash = capture_update_hash(position->hash, colour, type, trap_square);
-
-      break;
     }
-
-    trap_pieces &= ~trap;
   }
 }
 
@@ -191,7 +186,7 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
 
     Transposition transposition;
     if (!load_transposition(next, &transposition)) {
-      Transposition transposition = { .score = 1, .bound = EXACT };
+      Transposition transposition = { .bound = NONE };
       save_transposition(next, transposition);
 
       Position pass_position = next;
@@ -201,13 +196,13 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
       }
 
       if (!load_transposition(pass_position, &transposition)) {
-        Transposition transposition = { .score = 1, .bound = EXACT };
+        Transposition transposition = { .bound = NONE };
         save_transposition(next, transposition);
         moves[move_count++] = move;
       }
 
       if (move_step_count < STEP_COUNT) {
-        move_count = generate_moves(next, move, moves, move_count);
+        move_count = generate_moves(next, new_moves[i], moves, move_count);
       }
     }
   }

@@ -17,6 +17,10 @@ Bitboard west(Bitboard bitboard) {
   return (bitboard & NOT_A_FILE) >> 1;
 }
 
+int population(Bitboard bitboard) {
+  return __builtin_popcountl(bitboard);
+}
+
 Position new_game() {
   Position position = { .turn = 0, .hash = 0ULL };
 
@@ -89,6 +93,8 @@ Square first_square(Bitboard board) {
   return __builtin_ffsl(board) - 1;
 }
 
+#include "print.h"
+#include <stdio.h>
 Type type_at_square(Position position, Colour colour, Square square) {
   Bitboard target = bitboard_at(square);
 
@@ -98,6 +104,8 @@ Type type_at_square(Position position, Colour colour, Square square) {
     }
   }
 
+  printf("No type at square %c%c:\n", 'a' + square / 8, '1' + square % 8);
+  print_position(position);
   return -1;
 }
 
@@ -110,5 +118,8 @@ Colour colour_at_square(Position position, Square square) {
     }
   }
 
+  printf("No colour at square %c%c:\n", 'a' + square / 8, '1' + square % 8);
+  print_position(position);
   return -1;
 }
+

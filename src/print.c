@@ -78,7 +78,7 @@ void print_step(Position position, Step step) {
   Type type = type_at_square(position, colour, from);
 
   char piece = piece_char(colour, type);
-  char row = 'a' + (from & 7);
+  char row = 'a' + (from % 8);
   char col = '1' + (from / 8);
   char direction;
   switch (step_direction(step)) {
@@ -95,23 +95,17 @@ void print_step(Position position, Step step) {
   position.pieces[colour][ALL] &= ~bitboard_at(from);
   position.pieces[colour][ALL] |= bitboard_at(to);
 
-  Bitboard trap_pieces = position.pieces[colour][ALL] & TRAPS;
-  while (trap_pieces) {
-    Square trap_piece = first_square(trap_pieces);
-    Bitboard trap_square = bitboard_at(trap_piece);
+  Bitboard trap = square_neighbours(from) & TRAPS;
+  if (trap) {
+    Square trap_square = first_square(trap);
 
-    if (!(position.pieces[colour][ALL] & square_neighbours(trap_piece))) {
-      piece = piece_char(colour, type_at_square(position, colour, trap_piece));
-      row = 'a' + (trap_piece & 7);
-      col = '1' + (trap_piece / 8);
+    if (position.pieces[colour][ALL] & trap && !(position.pieces[colour][ALL] & square_neighbours(trap_square))) {
+      piece = piece_char(colour, type_at_square(position, colour, trap_square));
+      row = 'a' + (trap_square % 8);
+      col = '1' + (trap_square / 8);
       printf("%c%c%cx ", piece, row, col);
-
-      position.pieces[colour][type_at_square(position, colour, trap_piece)] &= ~trap_square;
-      position.pieces[colour][ALL] &= ~trap_square;
     }
-
-    trap_pieces &= ~trap_square;
-  }  
+  }
 }
 
 void print_move(Position position, Move move) {
@@ -119,6 +113,7 @@ void print_move(Position position, Move move) {
     Step step = move.step[i];
     if (step != PASS_STEP) {
       print_step(position, step);
+      make_step(&position, step, i);
     }
   }
 

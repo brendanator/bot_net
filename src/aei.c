@@ -117,7 +117,6 @@ void aei_loop() {
 
   for (;;) {
     getline(&controller_message, &bufsize, stdin);
-    printf("%s", controller_message);
     int option_count = parse_message(controller_message, message_type, options);
 
     if (strcmp(message_type, "aei") == 0) {

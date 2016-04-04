@@ -30,6 +30,7 @@ char * test_generate_single_steps() {
   return 0;
 }
 
+#include "../src/print.h"
 char * test_generate_push_pull_steps() {
   Position position = new_game();
   char *step_str[] = { "Mf5", "ef4", "re5", "rg4", "Cb2", "dc2", "Hc1", "Hb7", "hb8" };
