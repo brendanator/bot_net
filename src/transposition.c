@@ -9,7 +9,7 @@
 */
 
 Hash piece_hashes[COLOUR_COUNT][TYPE_COUNT][SQUARE_COUNT];
-Hash colour_step_hashes[COLOUR_COUNT * STEP_COUNT];
+Hash step_hashes[STEP_COUNT];
 
 typedef struct TranpositionEntry {
   Hash key;
@@ -17,8 +17,8 @@ typedef struct TranpositionEntry {
 } TranpositionEntry;
 
 #define TRANPOSITION_ENTRY_COUNT 0x100000 // Must be power of 2
+#define INDEX_MASK 0xfffff // TRANPOSITION_ENTRY_COUNT-1
 TranpositionEntry transposition_table[TRANPOSITION_ENTRY_COUNT];
-int INDEX_MASK = TRANPOSITION_ENTRY_COUNT-1;
 
 void init_transposition_table() {
   srand(0);
@@ -29,10 +29,10 @@ void init_transposition_table() {
         piece_hashes[colour][type][square] = ((Hash) rand() << 32) ^ ((Hash) rand());
       }
     }
+  }
 
-    for (int step = 0; step < STEP_COUNT; step++) {
-      colour_step_hashes[colour * STEP_COUNT + step] = ((Hash) rand() << 32) ^ ((Hash) rand());
-    }
+  for (int step = 0; step < STEP_COUNT; step++) {
+    step_hashes[step] = ((Hash) rand() << 32) ^ ((Hash) rand());
   }
 }
 
@@ -44,23 +44,15 @@ Hash place_update_hash(Hash hash, Colour colour, Type type, Square square) {
   return hash ^ piece_hashes[colour][type][square];
 }
 
-int colour_step_hash(Colour colour, int step_number) {
-  int index = (colour * STEP_COUNT + step_number) % 8;
-  return colour_step_hashes[index];
-}
-
 Hash step_update_hash(Hash hash, Colour colour, Type type, Square from, Square to, int step_number) {
   return hash ^
     piece_hashes[colour][type][from] ^
     piece_hashes[colour][type][to] ^
-    colour_step_hash(colour, step_number) ^
-    colour_step_hash(colour, step_number+1);
+    step_hashes[step_number];
 }
 
-Hash pass_update_hash(Hash hash, Colour colour, int step_number) {
-  return hash ^
-    colour_step_hash(colour, step_number) ^
-    colour_step_hash(colour, step_number+1);  
+Hash pass_update_hash(Hash hash, int step_number) {
+  return hash ^ step_hashes[step_number];
 }
 
 Hash capture_update_hash(Hash hash, Colour colour, Type type, Square square) {
@@ -74,8 +66,12 @@ Hash xor(Hash hash, Transposition transposition) {
 }
 
 void save_transposition(Position position, Transposition transposition) {
-  TranpositionEntry entry = { .key = xor(position.hash, transposition), .value = transposition };
-  transposition_table[position.hash & INDEX_MASK] = entry;
+  int index = position.hash & INDEX_MASK;
+  // Only overwrite PV nodes with other PV nodes
+  if (transposition.bound == EXACT || transposition_table[index].value.bound != EXACT) {
+    TranpositionEntry entry = { .key = xor(position.hash, transposition), .value = transposition };
+    transposition_table[index] = entry;
+  }
 }
 
 bool load_transposition(Position position, Transposition *transposition) {
@@ -87,4 +83,18 @@ bool load_transposition(Position position, Transposition *transposition) {
   } else {
     return false;
   }
+}
+
+Move best_move(Transposition transposition) {
+  Move move = { .steps.all = transposition.best_move };
+
+  move.step_count = STEP_COUNT;
+  for (int i = 0; i < STEP_COUNT; i++) {
+    if (move.steps.step[i] == EMPTY_STEP) {
+      move.step_count = i;
+      break;
+    }
+  }
+
+  return move;
 }

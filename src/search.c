@@ -2,13 +2,20 @@
 #include "move_generation.h"
 #include "eval.h"
 #include "transposition.h"
+#include "print.h"
 
 #include <stdlib.h>
+#include <time.h>
 
-Score negamax(Position position, Score alpha, Score beta, int depth) {
+static int nodes_searched = 0;
+
+Score negamax(Position position, Move current_move, Score alpha, Score beta, int depth) {
   Score alphaOriginal = alpha;
 
-  Transposition transposition;
+  Move moves[128];
+  int count = 0;
+
+  Transposition transposition = {};
   if (load_transposition(position, &transposition) && transposition.depth >= depth) {
     if (transposition.bound == EXACT) {
       return transposition.score;
@@ -21,36 +28,59 @@ Score negamax(Position position, Score alpha, Score beta, int depth) {
     if (alpha >= beta) {
       return transposition.score;
     }
+
+    if (transposition.best_move) {
+      moves[count++] = best_move(transposition);
+    }
   }
 
-  if (depth <= 0 || position.gameover) {
+  if (depth <= 0 || position.winner) {
     return eval(position);
   }
 
-  Move moves[32000];
-  int count = generate_moves(position, new_move(), moves, 0);
+  if (current_move.step_count < STEP_COUNT-1) {
+    count += generate_push_pull_steps(position, current_move, &moves[count]);
+  }
+  if (current_move.step_count < STEP_COUNT) {
+    count += generate_single_steps(position, current_move, &moves[count]);
+  }
+  if (current_move.step_count > 0 && current_move.step_count < STEP_COUNT) {
+    count += generate_pass(current_move, &moves[count]);
+  }
 
   Score best_score = -INFINITY;
-  Move best_move;
+  Move best_move = new_move();
   for (int i = 0; i < count; i++) {
+    nodes_searched++;
     Position next = position;
-    make_move(&next, moves[i]);
+    Move move = moves[i];
+    for (int step_number = current_move.step_count; step_number < move.step_count; step_number++) {
+      make_step(&next, move.steps.step[step_number], step_number);
+    }
 
-    Score score = -negamax(next, -beta, -alpha, depth-1);
+    Score score;
+    if (position.turn == next.turn) { // Same colour to move
+      score = negamax(next, move, alpha, beta, depth - (move.step_count - current_move.step_count));
+    } else {
+      // TODO - check for repetitions here?
+
+      score = -negamax(next, new_move(), -beta, -alpha, depth - (move.step_count - current_move.step_count));
+    }
+
 
     if (score > alpha) {
       alpha = score;
     }
     if (score > best_score) {
       best_score = score;
-      best_move = moves[i];
+      best_move = move;
     }
     if (alpha >= beta) {
       break;
     }
   }
 
-  transposition.best_move = best_move;
+  transposition.best_move = best_move.steps.all;
   transposition.depth = depth;
   transposition.score = best_score;
   if (best_score <= alphaOriginal) {
@@ -65,44 +95,41 @@ Score negamax(Position position, Score alpha, Score beta, int depth) {
   return best_score;
 }
 
-typedef struct MoveScore {
-  Move move;
-  Score score;
-  Position position;
-} MoveScore;
+PrincipleVariation principle_variation(Position position) {
+  PrincipleVariation pv = {};
+  int step_number = 0;
+  Transposition transposition;
 
-int compareMoveScores(const void *a, const void *b) {
-  // Sort higher scores ahead of lower scores
-  return ((MoveScore*) b)->score - ((MoveScore*) a)->score;
-}
+  while (load_transposition(position, &transposition)) {
+    if (pv.move_count == 0 || step_number == STEP_COUNT) {
+      step_number = 0;
+      pv.move_count++;
+    }
 
-Move find_best_move(Position position) {
-  Move *moves = malloc(32000 * sizeof(Move));
-  int count = generate_moves(position, new_move(), moves, 0);
+    Move move = best_move(transposition);
+    pv.move[pv.move_count-1] = move;
 
-  MoveScore move_scores[count];
-  for (int i = 0; i < count; i++) {
-    Position next = position;
-    make_move(&next, moves[i]);
-    Score score = eval(next);
-    MoveScore move_score = { .move = moves[i], .score = score, .position = next };
-    move_scores[i] = move_score;
-  }
-
-  qsort(move_scores, count, sizeof(MoveScore), compareMoveScores);
-
-  Move best_move;
-  Score best_score = -INFINITY;
-  for (int i = 0; i < count; i++) {
-    Score score = negamax(move_scores[i].position, -INFINITY, INFINITY, 1);
-
-    if (score > best_score) {
-      best_score = score;
-      best_move = moves[i];
+    for (; step_number < move.step_count; step_number++) {
+      make_step(&position, move.steps.step[step_number], step_number);
     }
   }
 
-  free(moves);
+  return pv;
+}
 
-  return best_move;
+Move find_best_move(Position position) {
+  nodes_searched = 0;
+  time_t start_time = time(NULL);
+
+  for (int depth = 2; depth <= 8; depth++) {
+    Score score = negamax(position, new_move(), -INFINITY, INFINITY, depth);
+
+    printf("info score %+.2f\n", score / 1000.0);
+    printf("info depth %d\n", depth);
+    printf("info nodes %d\n", nodes_searched);
+    printf("info time %.0f\n", difftime(time(NULL), start_time));
+    print_principle_variation(position, principle_variation(position));
+  }
+
+  return principle_variation(position).move[0];
 }

@@ -5,6 +5,9 @@
 #include <stdint.h>
 
 typedef enum Colour { GOLD, SILVER, COLOUR_COUNT } Colour;
+Colour turn_colour(int turn);
+Colour enemy_colour(Colour colour);
+
 typedef enum Type { ALL, RABBIT, CAT, DOG, HORSE, CAMEL, ELEPHANT, TYPE_COUNT } Type;
 
 typedef uint8_t Square;
@@ -22,20 +25,24 @@ Bitboard west(Bitboard bitboard);
 int population(Bitboard bitboard);
 
 // Useful bitboards
-#define NOT_A_FILE 0xfefefefefefefefeULL
-#define NOT_H_FILE 0x7f7f7f7f7f7f7f7fULL
-#define NOT_1_RANK 0xffffffffffffff00ULL
-#define NOT_8_RANK 0x00ffffffffffffffULL
-#define TRAPS      0x0000240000240000ULL
-#define EMPTY      0ULL
+#define NOT_A_FILE  0xfefefefefefefefeULL
+#define NOT_H_FILE  0x7f7f7f7f7f7f7f7fULL
+#define NOT_1_RANK  0xffffffffffffff00ULL
+#define NOT_8_RANK  0x00ffffffffffffffULL
+#define GOLD_GOAL   0xff00000000000000ULL
+#define SILVER_GOAL 0x00000000000000ffULL
+#define TRAPS       0x0000240000240000ULL
+#define EMPTY       0ULL
 
 typedef uint64_t Hash;
 
+typedef enum Winner { GOLD_WIN = 1, NO_WINNER = 0, SILVER_WIN = -1} Winner;
 typedef struct Position {
   Bitboard pieces[COLOUR_COUNT][TYPE_COUNT];
   int turn;
+  int steps;
+  Winner winner;
   Hash hash;
-  bool gameover;
 } Position;
 Position new_game();
 
@@ -55,13 +62,22 @@ Direction step_direction(Step step);
 #define STEP_COUNT 4
 
 typedef struct Move {
-  Step step[STEP_COUNT];
+  union {
+    uint32_t all;
+    Step step[STEP_COUNT];
+  } steps;
+  int step_count;
 } Move;
 Move new_move();
-int step_count(Move move);
+
+typedef struct PrincipleVariation {
+  int move_count;
+  Move move[4];
+} PrincipleVariation;
 
 typedef int32_t Score;
 #define INFINITY 0x100000 // 2^20
+#define VICTORY 0xfffff   // INFINITY - 1
 
 Square first_square(Bitboard board);
 Colour colour_at_square(Position position, Square square);

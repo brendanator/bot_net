@@ -37,48 +37,77 @@ void place_piece(Position *position, PlacePiece piece) {
 
 void make_step(Position *position, Step step, int step_number) {
   if (step == PASS_STEP) {
-    position->hash = pass_update_hash(position->hash, position->turn % 2, step_number);
-    return;
+    position->hash = pass_update_hash(position->hash, step_number);
+  } else {
+    Square from = step_from(step);
+    Square to = step_to(step);
+    Colour colour = colour_at_square(*position, from);
+    Type type = type_at_square(*position, colour, from);
+
+    position->pieces[colour][type] &= ~bitboard_at(from);
+    position->pieces[colour][type] |= bitboard_at(to);
+    position->pieces[colour][ALL] &= ~bitboard_at(from);
+    position->pieces[colour][ALL] |= bitboard_at(to);
+
+    position->hash = step_update_hash(position->hash, colour, type, from, to, step_number);
+
+    // Piece captured?
+    Bitboard trap = square_neighbours(from) & TRAPS;
+    if (trap) {
+      Square trap_square = first_square(trap);
+
+      if (position->pieces[colour][ALL] & trap && !(position->pieces[colour][ALL] & square_neighbours(trap_square))) {
+        Type type = type_at_square(*position, colour, trap_square);
+        position->pieces[colour][type] &= ~trap;
+        position->pieces[colour][ALL] &= ~trap;
+
+        position->hash = capture_update_hash(position->hash, colour, type, trap_square);
+      }
+    }
   }
 
-  Square from = step_from(step);
-  Square to = step_to(step);
-  Colour colour = colour_at_square(*position, from);
-  Type type = type_at_square(*position, colour, from);
+  position->steps++;
 
-  position->pieces[colour][type] &= ~bitboard_at(from);
-  position->pieces[colour][type] |= bitboard_at(to);
-  position->pieces[colour][ALL] &= ~bitboard_at(from);
-  position->pieces[colour][ALL] |= bitboard_at(to);
-
-  position->hash = step_update_hash(position->hash, colour, type, from, to, step_number);
-
-  Bitboard trap = square_neighbours(from) & TRAPS;
-  if (trap) {
-    Square trap_square = first_square(trap);
-
-    if (position->pieces[colour][ALL] & trap && !(position->pieces[colour][ALL] & square_neighbours(trap_square))) {
-      Type type = type_at_square(*position, colour, trap_square);
-      position->pieces[colour][type] &= ~trap;
-      position->pieces[colour][ALL] &= ~trap;
-
-      position->hash = capture_update_hash(position->hash, colour, type, trap_square);
+  // Check for a winner
+  if (turn_colour(position->turn) == GOLD) {
+    if (position->pieces[GOLD][RABBIT] & GOLD_GOAL || !position->pieces[SILVER][RABBIT]) {
+      position->winner = GOLD_WIN;
     }
+  } else {
+    if (position->pieces[SILVER][RABBIT] & SILVER_GOAL|| !position->pieces[GOLD][RABBIT]) {
+      position->winner = SILVER_WIN;
+    }
+  }
+
+  if (position->steps == STEP_COUNT) {
+    position->turn++;
+    position->steps = 0;    
   }
 }
 
 void make_move(Position *position, Move move) {
-  int count = step_count(move);
-  for (int step_number = 0; step_number < count; step_number++) {
-    make_step(position, move.step[step_number], step_number);
+  for (int step_number = 0; step_number < move.step_count; step_number++) {
+    make_step(position, move.steps.step[step_number], step_number);
+  }
+}
+
+int generate_pass(Move current_move, Move moves[]) {
+  if (current_move.step_count < STEP_COUNT) {
+    for (int step_number = current_move.step_count; step_number < STEP_COUNT; step_number++) {
+      current_move.steps.step[step_number] = PASS_STEP;
+    }
+    current_move.step_count = 4;
+    moves[0] = current_move;
+    return 1;
+  } else {
+    return 0;
   }
 }
 
 int generate_single_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
-  int step_number = step_count(current_move);
-  Colour colour = position.turn & 1;
-  Colour enemy = colour^1;
+  Colour colour = turn_colour(position.turn);
+  Colour enemy = enemy_colour(colour);
   Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
   Bitboard stronger = position.pieces[enemy][ALL];
 
@@ -95,7 +124,7 @@ int generate_single_steps(Position position, Move current_move, Move moves[]) {
         Square to = first_square(steps);
 
         Move move = current_move;
-        move.step[step_number] = new_step(from, to);
+        move.steps.step[move.step_count++] = new_step(from, to);
         moves[move_count++] = move;
 
         steps &= ~bitboard_at(to);
@@ -110,9 +139,8 @@ int generate_single_steps(Position position, Move current_move, Move moves[]) {
 
 int generate_push_pull_steps(Position position, Move current_move, Move moves[]) {
   int move_count = 0;
-  int step_number = step_count(current_move);
-  Colour colour = position.turn & 1;
-  Colour enemy = colour^1;
+  Colour colour = turn_colour(position.turn);
+  Colour enemy = enemy_colour(colour);
   Bitboard empty_squares = ~(position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]);
   Bitboard stronger = position.pieces[enemy][ALL] & ~position.pieces[enemy][RABBIT];
   Bitboard weaker = EMPTY;
@@ -135,8 +163,8 @@ int generate_push_pull_steps(Position position, Move current_move, Move moves[])
           Square victim_to = first_square(push_steps);
 
           Move move = current_move;
-          move.step[step_number] = new_step(victim_square, victim_to);
-          move.step[step_number+1] = new_step(attack_square, victim_square);
+          move.steps.step[move.step_count++] = new_step(victim_square, victim_to);
+          move.steps.step[move.step_count++] = new_step(attack_square, victim_square);
           moves[move_count++] = move;
 
           push_steps &= ~bitboard_at(victim_to);
@@ -147,8 +175,8 @@ int generate_push_pull_steps(Position position, Move current_move, Move moves[])
           Square piece_to = first_square(pull_steps);
 
           Move move = current_move;
-          move.step[step_number] = new_step(attack_square, piece_to);
-          move.step[step_number+1] = new_step(victim_square, attack_square);
+          move.steps.step[move.step_count++] = new_step(attack_square, piece_to);
+          move.steps.step[move.step_count++] = new_step(victim_square, attack_square);
           moves[move_count++] = move;
 
           pull_steps &= ~bitboard_at(piece_to);
@@ -166,42 +194,33 @@ int generate_push_pull_steps(Position position, Move current_move, Move moves[])
 int generate_moves(Position position, Move current_move, Move moves[], int move_count) {
   int new_count = 0;
   Move new_moves[128];
-  int current_step_count = step_count(current_move);
 
-  if (current_step_count < STEP_COUNT-1) {
+  // Make sure this position is not revisted
+  Transposition transposition = {};
+  save_transposition(position, transposition);
+
+  if (current_move.step_count < STEP_COUNT-1) {
     new_count += generate_push_pull_steps(position, current_move, &new_moves[new_count]);
   }
-  if (current_step_count < STEP_COUNT) {
+  if (current_move.step_count < STEP_COUNT) {
     new_count += generate_single_steps(position, current_move, &new_moves[new_count]);
   }
 
   for (int i = 0; i < new_count; i++) {
     Move move = new_moves[i];
-    int move_step_count = step_count(move);
 
     Position next = position;
-    for (int step_number = current_step_count; step_number < move_step_count; step_number++) {
-      make_step(&next, move.step[step_number], step_number);
+    for (int step_number = current_move.step_count; step_number < move.step_count; step_number++) {
+      make_step(&next, move.steps.step[step_number], step_number);
     }
 
-    Transposition transposition;
     if (!load_transposition(next, &transposition)) {
-      Transposition transposition = { .bound = NONE };
       save_transposition(next, transposition);
-
-      Position pass_position = next;
-      for (int step_number = move_step_count; step_number < STEP_COUNT; step_number++) {
-        move.step[step_number] = PASS_STEP;
-        make_step(&pass_position, PASS_STEP, step_number);
-      }
-
-      if (!load_transposition(pass_position, &transposition)) {
-        Transposition transposition = { .bound = NONE };
-        save_transposition(next, transposition);
+      if (move.step_count) {
         moves[move_count++] = move;
       }
 
-      if (move_step_count < STEP_COUNT) {
+      if (move.step_count < STEP_COUNT) {
         move_count = generate_moves(next, new_moves[i], moves, move_count);
       }
     }

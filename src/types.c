@@ -1,5 +1,15 @@
 #include "types.h"
+#include "print.h"
 
+#include <stdlib.h>
+
+Colour turn_colour(int turn) {
+  return turn % 2;
+}
+
+Colour enemy_colour(Colour colour) {
+  return colour ^ 1;
+}
 
 Bitboard north(Bitboard bitboard) {
   return (bitboard & NOT_8_RANK) << 8;
@@ -22,18 +32,12 @@ int population(Bitboard bitboard) {
 }
 
 Position new_game() {
-  Position position = { .turn = 0, .hash = 0ULL };
-
-  for (Type type = ALL; type <= ELEPHANT; type++) {
-    position.pieces[GOLD][type] = EMPTY;
-    position.pieces[SILVER][type] = EMPTY;
-  }
-
+  Position position = {};
   return position;
 }
 
 Move new_move() {
-  Move move = { .step = { EMPTY_STEP, EMPTY_STEP, EMPTY_STEP, EMPTY_STEP } };
+  Move move = {};
   return move;
 }
 
@@ -67,16 +71,6 @@ Direction step_direction(Step step) {
   return step & 3;
 }
 
-int step_count(Move move) {
-  for (int i = 0; i < STEP_COUNT; ++i) {
-    if (move.step[i] == EMPTY_STEP) {
-      return i;
-    }
-  }
-  return STEP_COUNT;
-}
-
-
 Bitboard bitboard_at(Square square) {
   return 1ULL << square;
 }
@@ -93,8 +87,6 @@ Square first_square(Bitboard board) {
   return __builtin_ffsl(board) - 1;
 }
 
-#include "print.h"
-#include <stdio.h>
 Type type_at_square(Position position, Colour colour, Square square) {
   Bitboard target = bitboard_at(square);
 
@@ -104,9 +96,11 @@ Type type_at_square(Position position, Colour colour, Square square) {
     }
   }
 
-  printf("No type at square %c%c:\n", 'a' + square / 8, '1' + square % 8);
+  printf("No type at square %c%c:\n", 'a' + square % 8, '1' + square / 8);
   print_position(position);
-  return -1;
+  print_stack_trace();
+  fflush(stdout);
+  exit(1);
 }
 
 Colour colour_at_square(Position position, Square square) {
@@ -118,8 +112,10 @@ Colour colour_at_square(Position position, Square square) {
     }
   }
 
-  printf("No colour at square %c%c:\n", 'a' + square / 8, '1' + square % 8);
+  printf("No colour at square %c%c:\n", 'a' + square % 8, '1' + square / 8);
   print_position(position);
-  return -1;
+  print_stack_trace();
+  fflush(stdout);
+  exit(1);
 }
 

@@ -21,16 +21,15 @@ char * test_generate_single_steps() {
 
   mu_assert(count == 2);
 
-  mu_assert(step_from(moves[0].step[0]) == 63);
-  mu_assert(step_to(moves[0].step[0]) == 55);
+  mu_assert(step_from(moves[0].steps.step[0]) == 63);
+  mu_assert(step_to(moves[0].steps.step[0]) == 55);
 
-  mu_assert(step_from(moves[1].step[0]) == 63);
-  mu_assert(step_to(moves[1].step[0]) == 62);
+  mu_assert(step_from(moves[1].steps.step[0]) == 63);
+  mu_assert(step_to(moves[1].steps.step[0]) == 62);
 
   return 0;
 }
 
-#include "../src/print.h"
 char * test_generate_push_pull_steps() {
   Position position = new_game();
   char *step_str[] = { "Mf5", "ef4", "re5", "rg4", "Cb2", "dc2", "Hc1", "Hb7", "hb8" };
@@ -43,26 +42,26 @@ char * test_generate_push_pull_steps() {
   mu_assert(count == 4);
 
   // 2 pushes
-  mu_assert(step_from(moves[0].step[0]) == 37);
-  mu_assert(step_to(moves[0].step[0]) == 38);
-  mu_assert(step_from(moves[0].step[1]) == 29);
-  mu_assert(step_to(moves[0].step[1]) == 37);
+  mu_assert(step_from(moves[0].steps.step[0]) == 37);
+  mu_assert(step_to(moves[0].steps.step[0]) == 38);
+  mu_assert(step_from(moves[0].steps.step[1]) == 29);
+  mu_assert(step_to(moves[0].steps.step[1]) == 37);
 
-  mu_assert(step_from(moves[1].step[0]) == 37);
-  mu_assert(step_to(moves[1].step[0]) == 45);
-  mu_assert(step_from(moves[1].step[1]) == 29);
-  mu_assert(step_to(moves[1].step[1]) == 37);
+  mu_assert(step_from(moves[1].steps.step[0]) == 37);
+  mu_assert(step_to(moves[1].steps.step[0]) == 45);
+  mu_assert(step_from(moves[1].steps.step[1]) == 29);
+  mu_assert(step_to(moves[1].steps.step[1]) == 37);
 
   // 2 pulls
-  mu_assert(step_from(moves[2].step[0]) == 29);
-  mu_assert(step_to(moves[2].step[0]) == 21);
-  mu_assert(step_from(moves[2].step[1]) == 37);
-  mu_assert(step_to(moves[2].step[1]) == 29);
+  mu_assert(step_from(moves[2].steps.step[0]) == 29);
+  mu_assert(step_to(moves[2].steps.step[0]) == 21);
+  mu_assert(step_from(moves[2].steps.step[1]) == 37);
+  mu_assert(step_to(moves[2].steps.step[1]) == 29);
 
-  mu_assert(step_from(moves[3].step[0]) == 29);
-  mu_assert(step_to(moves[3].step[0]) == 28);
-  mu_assert(step_from(moves[3].step[1]) == 37);
-  mu_assert(step_to(moves[3].step[1]) == 29);
+  mu_assert(step_from(moves[3].steps.step[0]) == 29);
+  mu_assert(step_to(moves[3].steps.step[0]) == 28);
+  mu_assert(step_from(moves[3].steps.step[1]) == 37);
+  mu_assert(step_to(moves[3].steps.step[1]) == 29);
 
   return 0;
 }

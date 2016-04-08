@@ -1,7 +1,8 @@
 #include "eval.h"
+#include "utils.h"
 
-#include "stdlib.h"
-#include "math.h"
+#include <stdlib.h>
+#include <math.h>
 
 int manhattan_distances[SQUARE_COUNT][SQUARE_COUNT];
 
@@ -91,6 +92,17 @@ Score piece_alignment(Position position) {
   return score;
 }
 
+Score trap_control(Position position) {
+  Bitboard trap_neighbours = all_neighbours(TRAPS);
+  Score gold_trap_control = population(trap_neighbours & position.pieces[GOLD][ALL]);
+  Score silver_trap_control = population(trap_neighbours & position.pieces[SILVER][ALL]);
+  return gold_trap_control - silver_trap_control;
+}
+
+Score winner(Position position) {
+  return position.winner * (VICTORY - (position.turn * 4) - position.steps);
+}
+
 Score gaussian_noise(double standard_deviation) {
   static double spare;
   static bool has_spare;
@@ -114,15 +126,23 @@ Score gaussian_noise(double standard_deviation) {
 }
 
 Score eval(Position position) {
-  Score score =
-    harlog(position) +
-    piece_alignment(position);
-    gaussian_noise(10);
+  Score score = winner(position);
 
-  if (position.turn % 2) {
-    return -score;
-  } else {
+  if (!score) {
+    score = 
+      harlog(position) +
+      trap_control(position) +
+      piece_alignment(position);
+      // gaussian_noise(10);
+  }
+
+  score = min(score, VICTORY);
+  score = max(score, -VICTORY);
+
+  if (turn_colour(position.turn) == GOLD) {
     return score;
+  } else {
+    return -score;
   }
 }
 

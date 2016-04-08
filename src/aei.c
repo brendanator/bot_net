@@ -39,7 +39,7 @@ void setposition(Position *position, char *player, char *position_str) {
   } else {
     position->turn = 3;
     for (int step_number = 0; step_number < STEP_COUNT; step_number++) {
-      make_step(position, PASS_STEP, step_number);
+      position->hash = pass_update_hash(position->hash, step_number);
     }
   }
 
@@ -57,6 +57,7 @@ void setposition(Position *position, char *player, char *position_str) {
 
 void makemove(Position *position, char *step_str[], int count) {
   int step_count = 0;
+  bool placing_pieces = false;
 
   for (int i = 0; i < count; i++) {
     char *move_str = step_str[i];
@@ -65,10 +66,10 @@ void makemove(Position *position, char *step_str[], int count) {
     Square to = 0;
     bool is_step = true;
     switch (move_str[3]) {
-      case 'n': to = from + 8;; break;
-      case 's': to = from - 8;; break;
-      case 'e': to = from + 1;; break;
-      case 'w': to = from - 1;; break;
+      case 'n': to = from + 8; break;
+      case 's': to = from - 8; break;
+      case 'e': to = from + 1; break;
+      case 'w': to = from - 1; break;
       case 'x': continue;
       default: is_step = false;
     }
@@ -81,22 +82,25 @@ void makemove(Position *position, char *step_str[], int count) {
       Type type = piece_index & 7;
       PlacePiece piece = { .colour = colour, .type = type, .square = from };
       place_piece(position, piece);
+      placing_pieces = true;
     }
   }
 
+  // Complete the turn
   for (int step_number = step_count; step_number < STEP_COUNT; step_number++) {
     make_step(position, PASS_STEP, step_number);
   }
-
-  position->turn++;
+  if (placing_pieces) {
+    position->winner = 0;
+  }
 }
 
 void go(Position position) {
   if (position.turn == 0) {
-    printf("bestmove Ra1 Rb1 Rc1 Rd1 Re1 Rf1 Rg1 Rh1 Ha2 Db2 Cc2 Md2 Ee2 Cf2 Dg2 Hh2\n");
+    printf("bestmove Ra1 Rb1 Rc1 Rf1 Rg1 Rh1 Ra2 Rh2 De1 Hb2 Cc2 Md2 Ee2 Cf2 Hg2 Dd1\n");
     return;
   } else if (position.turn == 1) {
-    printf("bestmove ra8 rb8 rc8 rd8 re8 rf8 rg8 rh8 ha7 db7 cc7 ed7 me7 cf7 dg7 hh7\n");
+    printf("bestmove ra8 rb8 rc8 ra7 rh7 rf8 rg8 rh8 dd8 hb7 cc7 ed7 me7 cf7 hg7 de8\n");
     return;
   }
 
