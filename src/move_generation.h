@@ -18,4 +18,6 @@ int generate_push_pull_steps(Position position, Move current_move, Move *moves);
 
 int generate_moves(Position position, Move current_move, Move moves[], int move_count);
 
+bool is_legal(Position position, Move move);
+
 #endif // MOVE_GENERATION_H

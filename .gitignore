@@ -9,3 +9,6 @@ logs/
 running/
 obj/
 *.dSYM
+
+.lldbinit
+debug.py

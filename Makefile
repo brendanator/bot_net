@@ -13,7 +13,7 @@ TST_DIRECTORY = test
 TST_FILES = $(wildcard $(TST_DIRECTORY)/*.c)
 TST_OBJ_FILES = $(addprefix $(OBJ_DIRECTORY)/,$(notdir $(TST_FILES:.c=.o)))
 
-.PHONY: all clean test $(TST_FILES:.c=)
+.PHONY: all prod clean test $(TST_FILES:.c=)
 
 all: $(OBJ_DIRECTORY) $(EXE)
 

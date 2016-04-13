@@ -81,7 +81,7 @@ void make_step(Position *position, Step step, int step_number) {
 
   if (position->steps == STEP_COUNT) {
     position->turn++;
-    position->steps = 0;    
+    position->steps = 0;
   }
 }
 
@@ -227,4 +227,73 @@ int generate_moves(Position position, Move current_move, Move moves[], int move_
   }
 
   return move_count;
+}
+
+bool is_legal(Position position, Move move) {
+  Colour colour = turn_colour(position.turn);
+  Colour enemy = enemy_colour(colour);
+
+  Type pushed_type = 0;
+  Square pushed_from = -1;
+  Type pulling_type = 0;
+  Square pulling_to = -1;
+
+  for (int step_number = position.steps; step_number < move.step_count; step_number++) {
+    Step step = move.steps.step[step_number];
+    Square from = step_from(step);
+    Square to = step_to(step);
+
+    if ((position.pieces[GOLD][ALL] | position.pieces[SILVER][ALL]) & bitboard_at(to)) {
+      // To square must be empty
+      return false;
+    }
+
+    if (position.pieces[colour][ALL] & bitboard_at(from)) {
+      // Check piece is not frozen
+      Bitboard neighbours = square_neighbours(from);
+      Type type = type_at_square(position, colour, from);
+      if (!(position.pieces[colour][ALL] & neighbours)) {
+        for (; type <= ELEPHANT; type++) {
+          if (position.pieces[enemy][type] & neighbours) {
+            return false;
+          }
+        }
+      }
+
+      if (pushed_type >= RABBIT) { // Incomplete push?
+        if (pushed_type >= type || pushed_from != to) {
+          return false;
+        }
+        // Piece cannot take part in another push/pull
+        pushed_type = 0;
+        pushed_from = -1;
+        pulling_type = 0;
+        pulling_to = -1;
+      } else {
+        // Allow a subsequent pull
+        pulling_type = type;
+        pulling_to = to;
+      }
+    } else if (position.pieces[enemy][ALL] & bitboard_at(from)) { // Enemy piece being pushed or pulled?
+      Type type = type_at_square(position, enemy, from);
+
+      if (type < pulling_type && to == pulling_to) { // Piece was pulled?
+        pulling_type = 0;
+        pulling_to = -1;
+      } else {
+        // Piece must be pushed by next step
+        pushed_from = to;
+        pushed_type = type;
+      }
+    } else {
+      // No piece at from square
+      return false;
+    }
+
+    // Update the position ready for the next step
+    make_step(&position, step, step_number);
+  }
+
+  // No outstanding push to be completed
+  return pushed_type == 0;
 }

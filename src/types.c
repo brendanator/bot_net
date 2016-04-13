@@ -1,5 +1,6 @@
 #include "types.h"
 #include "print.h"
+#include "utils.h"
 
 #include <stdlib.h>
 
@@ -96,11 +97,8 @@ Type type_at_square(Position position, Colour colour, Square square) {
     }
   }
 
-  printf("No type at square %c%c:\n", 'a' + square % 8, '1' + square / 8);
-  print_position(position);
-  print_stack_trace();
-  fflush(stdout);
-  exit(1);
+  assert(false);
+  return -1;
 }
 
 Colour colour_at_square(Position position, Square square) {
@@ -112,10 +110,7 @@ Colour colour_at_square(Position position, Square square) {
     }
   }
 
-  printf("No colour at square %c%c:\n", 'a' + square % 8, '1' + square / 8);
-  print_position(position);
-  print_stack_trace();
-  fflush(stdout);
-  exit(1);
+  assert(false);
+  return -1;
 }
 

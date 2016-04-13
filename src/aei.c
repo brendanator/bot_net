@@ -3,6 +3,8 @@
 #include "move_generation.h"
 #include "transposition.h"
 #include "print.h"
+#include "time_management.h"
+#include "utils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -110,6 +112,18 @@ void go(Position position) {
   print_move(position, best_move);
 }
 
+void setoption(char *name, char *value) {
+  if (strequal(name, "tcmove")) {
+    set_tcmove(strtol(value, NULL, 10));
+  } else if (strequal(name, "tcturntime")) {
+    set_tcturntime(strtol(value, NULL, 10));
+  } else if (strequal(name, "greserve")) {
+    set_greserve(strtol(value, NULL, 10));
+  } else if (strequal(name, "sreserve")) {
+    set_sreserve(strtol(value, NULL, 10));
+  }
+}
+
 void aei_loop() {
   Position game[500];
   int turn;
@@ -123,28 +137,28 @@ void aei_loop() {
     getline(&controller_message, &bufsize, stdin);
     int option_count = parse_message(controller_message, message_type, options);
 
-    if (strcmp(message_type, "aei") == 0) {
+    if (strequal(message_type, "aei")) {
       aei();
-    } else if (strcmp(message_type, "isready") == 0) {
+    } else if (strequal(message_type, "isready")) {
       printf("readyok\n");
-    } else if (strcmp(message_type, "newgame") == 0) {
+    } else if (strequal(message_type, "newgame")) {
       game[0] = new_game();
       turn = 0;
       reset_transposition_table();
-    } else if (strcmp(message_type, "setposition") == 0) {
+    } else if (strequal(message_type, "setposition")) {
       setposition(&game[0], options[0], options[1]);
-    } else if (strcmp(message_type, "setoption") == 0) {
-      // name <id> [value <x>]
-    } else if (strcmp(message_type, "makemove") == 0) {
+    } else if (strequal(message_type, "setoption")) {
+      setoption(options[1], options[3]);
+    } else if (strequal(message_type, "makemove")) {
       turn++;
       game[turn] = game[turn-1];
       makemove(&game[turn], options, option_count);
-    } else if (strcmp(message_type, "go") == 0) {
+    } else if (strequal(message_type, "go")) {
       // [ponder]
       go(game[turn]);
-    } else if (strcmp(message_type, "stop") == 0) {
+    } else if (strequal(message_type, "stop")) {
        //
-    } else if (strcmp(message_type, "quit") == 0) {
+    } else if (strequal(message_type, "quit")) {
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);

@@ -70,11 +70,6 @@ typedef struct Move {
 } Move;
 Move new_move();
 
-typedef struct PrincipleVariation {
-  int move_count;
-  Move move[4];
-} PrincipleVariation;
-
 typedef int32_t Score;
 #define INFINITY 0x100000 // 2^20
 #define VICTORY 0xfffff   // INFINITY - 1

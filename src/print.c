@@ -191,7 +191,7 @@ void print_transposition(Transposition transposition) {
 void print_stack_trace() {
   void *array[10];
   size_t size = backtrace(array, 10);
-  printf("Stack frames.\n");
-  backtrace_symbols_fd(array, size, fileno(stdout));
-  fflush(stdout);
+  fprintf(stderr, "Stack frames.\n");
+  backtrace_symbols_fd(array, size, fileno(stderr));
+  fflush(stderr);
 }

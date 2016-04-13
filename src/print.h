@@ -2,9 +2,12 @@
 #define PRINT_H
 
 #include "types.h"
+#include "principle_variation.h"
 #include "transposition.h"
+
 #include <stdio.h>
 
+void print_turn(Position position);
 void print_position(Position position);
 void print_short_position(Position position);
 void print_bitboard(Bitboard bitboard);
